@@ -95,6 +95,12 @@ def _merge_word(word: Tuple[int, ...], a: int, b: int, new_id: int) -> Tuple[int
     return tuple(out)
 
 
+def _pairs(word: Tuple[int, ...]) -> List[Tuple[int, int]]:
+    if len(word) < 2:
+        return []
+    return list(zip(word, word[1:]))
+
+
 def train_bpe(
     input_path: str | io.BytesIO,
     vocab_size: int,
@@ -137,6 +143,7 @@ def train_bpe(
         "specials",  len(special_tokens),
         "special_tokens",  json.dumps(special_tokens, ensure_ascii=False),
     )
+
     # 切成片段并统计出现次数，类似 {b'.': 98136, b',': 55123, b' the': 48886, ...} 的形式
     # 主要就是切分先按照 special token 切分文本，然后对每一个文本执行 pattern 的获取，然后统计一些出现的频次，最终获得一个 dict
     counts = _pretokenize(text, special_tokens)
@@ -162,36 +169,91 @@ def train_bpe(
         "id_to_bytes", id_to_bytes,
     )
 
+    # 返回结果，需要合并的内容
     merges: List[Tuple[bytes, bytes]] = []
 
+    # pair_counts 就是记录了key=相邻对 value=出现的频次
+    pair_counts: Dict[Tuple[int, int], int] = defaultdict(int)
+    # pair_index 就是记录了 key=相邻对  value=出现的所有词
+    pair_index: Dict[Tuple[int, int], set[Tuple[int, ...]]] = defaultdict(set)
+    # words 拿到的是一个 dict，key 是字节序列，就是单词，value 是出现的频次
+    for w, f in words.items():
+        for p in _pairs(w):
+            pair_counts[p] += f
+            pair_index[p].add(w)
+    
+
     for _ in range(num_merges):
-        pair_counts = _get_pair_counts(words)
         if not pair_counts:
             break
-        best_pair, best_count = None, -1
-        for p, c in pair_counts.items():
-            if c > best_count:
-                best_pair, best_count = p, c
-            elif c == best_count and best_pair is not None:
-                # 频次相同的并列情况，采用字典序更大的 (token1, token2) 作为优先合并的目标
-                a0, a1 = id_to_bytes[p[0]], id_to_bytes[p[1]]
-                b0, b1 = id_to_bytes[best_pair[0]], id_to_bytes[best_pair[1]]
-                if (a0, a1) > (b0, b1):
-                    best_pair = p
-        if best_pair is None:
-            break
+        # 抽取频次最大的那个
+        # 输出一个用于比较的三元组： (kv[1], id_to_bytes[kv[0][0]], id_to_bytes[kv[0][1]])
+        # - 第一维：频次 count ，越大越优先
+        # - 第二维： id_to_bytes[a] （bytes），用于并列频次时字典序比较
+        # - 第三维： id_to_bytes[b] （bytes），用于进一步并列时字典序比较
+        # - Python 对元组按字典序比较，先比第一项，再比第二项，以此类推
+        best_pair = max(
+            pair_counts.items(), # 这里是一个 tuple，key 是相邻对，value 是出现的频次
+            key=lambda kv: (kv[1], id_to_bytes[kv[0][0]], id_to_bytes[kv[0][1]]),
+        )[0]
 
+        # 添加新的合并和词汇
         a, b = best_pair
+        # 新bytes是两个旧 bytes数组的合并
         new_bytes = id_to_bytes[a] + id_to_bytes[b]
         new_id = len(id_to_bytes)
+        # 使用新的 ID
         id_to_bytes[new_id] = new_bytes
+        # 记录新加入的词汇
         merges.append((id_to_bytes[a], id_to_bytes[b]))
 
-        new_words: Dict[Tuple[int, ...], int] = {}
-        for w, f in words.items():
+        impacted = pair_index.get(best_pair)
+        # 如果已经没有涉及的单词，直接清理一下现场
+        if not impacted:
+            pair_index.pop(best_pair, None)
+            continue
+
+        new_words_acc: Dict[Tuple[int, ...], int] = {}
+        for w in list(impacted):
+            # 从words 里面，通过 word 来换出现的频次
+            f = words.get(w)
+            if f is None:
+                continue
+            old_pairs = _pairs(w)
+            for p in old_pairs:
+                pc = pair_counts.get(p)
+                if pc is not None:
+                    pc -= f
+                    if pc <= 0:
+                        pair_counts.pop(p, None)
+                        s = pair_index.get(p)
+                        if s is not None:
+                            s.discard(w)
+                            if not s:
+                                pair_index.pop(p, None)
+                    else:
+                        pair_counts[p] = pc
+                        s = pair_index.get(p)
+                        if s is not None:
+                            s.discard(w)
+                            if not s:
+                                pair_index.pop(p, None)
+
             merged = _merge_word(w, a, b, new_id)
-            new_words[merged] = new_words.get(merged, 0) + f
-        words = new_words
+            new_pairs = _pairs(merged)
+            for p in new_pairs:
+                pair_counts[p] = pair_counts.get(p, 0) + f
+                s = pair_index.get(p)
+                if s is None:
+                    pair_index[p] = {merged}
+                else:
+                    s.add(merged)
+            words.pop(w, None)
+            new_words_acc[merged] = new_words_acc.get(merged, 0) + f
+
+        for mw, fsum in new_words_acc.items():
+            words[mw] = words.get(mw, 0) + fsum
+        pair_index.pop(best_pair, None)
 
     vocab: Dict[int, bytes] = {i: id_to_bytes[i] for i in range(len(id_to_bytes))}
     return vocab, merges
