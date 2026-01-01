@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+export http_proxy=http://sys-proxy-rd-relay.byted.org:8118
+export https_proxy=http://sys-proxy-rd-relay.byted.org:8118  no_proxy=.byted.org
+
 mkdir -p data
 cd data
 
