@@ -77,7 +77,7 @@ def _get_pair_counts(word_counts: Dict[Tuple[int, ...], int]) -> Dict[Tuple[int,
             pair_counts[(word[i], word[i + 1])] += freq
     return pair_counts
 
-
+# 合并 word 中的 a,b 为 new_id，比如(aId, bIb, cId, aId, bId) -> (newId, cId, newId)
 def _merge_word(word: Tuple[int, ...], a: int, b: int, new_id: int) -> Tuple[int, ...]:
     """
     在给定“词”中，将相邻对 (a,b) 替换为新 ID，返回合并后的“词”。
@@ -100,29 +100,12 @@ def _pairs(word: Tuple[int, ...]) -> List[Tuple[int, int]]:
         return []
     return list(zip(word, word[1:]))
 
-
+# train_bpe 从input_date中训练获取BPE模型，也就是 词汇ID -> bytes数组
 def train_bpe(
     input_path: str | io.BytesIO,
     vocab_size: int,
     special_tokens: List[str],
 ) -> Tuple[Dict[int, bytes], List[Tuple[bytes, bytes]]]:
-    """
-    训练字节级 BPE 分词器。
-
-    参数：
-    - input_path：训练语料路径或内存字节流
-    - vocab_size：目标词表大小（包含 256 单字节 + 特殊标记 + 合并产生的 token）
-    - special_tokens：特殊标记字符串列表（以 UTF-8 加入词表，不参与合并）
-
-    返回：
-    - vocab：`{token_id -> token_bytes}` 的映射
-    - merges：按创建顺序记录的合并对 `[(bytes1, bytes2), ...]`
-
-    说明：
-    - 先用 GPT-2 正则进行预分词，并将片段按 UTF-8 编码为字节序列；
-    - 每轮选择最高频的相邻对进行合并；
-    - 频次相同时，采用“字典序更大”的 tie-break（按 `(bytes(token1), bytes(token2))` 比较）。
-    """
     assert vocab_size > 0
     base_vocab_count = 256 + len(special_tokens)
     # 计算实际需要执行的合并次数，不能超过 vocab_size - base_vocab_count
@@ -144,8 +127,7 @@ def train_bpe(
         "special_tokens",  json.dumps(special_tokens, ensure_ascii=False),
     )
 
-    # 切成片段并统计出现次数，类似 {b'.': 98136, b',': 55123, b' the': 48886, ...} 的形式
-    # 主要就是切分先按照 special token 切分文本，然后对每一个文本执行 pattern 的获取，然后统计一些出现的频次，最终获得一个 dict
+    # 按照special_token 和默认pattern 切分文本，得到形如 {['h','e','l','l','o']->2次, ['w','o','r','l','d']->1次} 类似这种
     counts = _pretokenize(text, special_tokens)
     sample_counts = dict(counts.most_common(100))
     logutil.info_kvs(
@@ -153,7 +135,7 @@ def train_bpe(
         "unique_pieces", len(counts),
         "counts_sample", sample_counts,
     )
-    # 这里最终转为 dict，key 是字节序列，value 是出现的频次
+    # ⚠️⚠️⚠️ 这里最终转为 map，形如 ('a','b','c','e') -> 8
     words: Dict[Tuple[int, ...], int] = {}
     for piece_bytes, freq in counts.items():
         words[tuple(piece_bytes)] = freq
@@ -172,88 +154,128 @@ def train_bpe(
     # 返回结果，需要合并的内容
     merges: List[Tuple[bytes, bytes]] = []
 
-    # pair_counts 就是记录了key=相邻对 value=出现的频次
+    # ⚠️⚠️⚠️ pair_counts 也是map，形如 ('a','b')->8, ('b','c')->10 类似这种
     pair_counts: Dict[Tuple[int, int], int] = defaultdict(int)
-    # pair_index 就是记录了 key=相邻对  value=出现的所有词
+    # ⚠️⚠️⚠️ pair_index 也是map，形如 ('a','b')->{('a','b','c','e'),('a','b','d','e')} 类似这种
     pair_index: Dict[Tuple[int, int], set[Tuple[int, ...]]] = defaultdict(set)
     # words 拿到的是一个 dict，key 是字节序列，就是单词，value 是出现的频次
     for w, f in words.items():
         for p in _pairs(w):
             pair_counts[p] += f
             pair_index[p].add(w)
-    
 
+    # 注意一下 words、id、bytes、pairs 之间的关系就行
+    
     for _ in range(num_merges):
+        # 从 本次的 pair_counts 里面，选择出现频次最高的 pair，
+        # 然后更新 id_to_bytes 和 merges 数组
         if not pair_counts:
             break
-        # 抽取频次最大的那个
-        # 输出一个用于比较的三元组： (kv[1], id_to_bytes[kv[0][0]], id_to_bytes[kv[0][1]])
-        # - 第一维：频次 count ，越大越优先
-        # - 第二维： id_to_bytes[a] （bytes），用于并列频次时字典序比较
-        # - 第三维： id_to_bytes[b] （bytes），用于进一步并列时字典序比较
-        # - Python 对元组按字典序比较，先比第一项，再比第二项，以此类推
+        # 先比较出现的频次，再比较第一个 & 第二个的字典序
         best_pair = max(
-            pair_counts.items(), # 这里是一个 tuple，key 是相邻对，value 是出现的频次
+            pair_counts.items(), # 形如 (('a','b'),8)
             key=lambda kv: (kv[1], id_to_bytes[kv[0][0]], id_to_bytes[kv[0][1]]),
         )[0]
-
-        # 添加新的合并和词汇
         a, b = best_pair
-        # 新bytes是两个旧 bytes数组的合并
         new_bytes = id_to_bytes[a] + id_to_bytes[b]
         new_id = len(id_to_bytes)
-        # 使用新的 ID
         id_to_bytes[new_id] = new_bytes
-        # 记录新加入的词汇
         merges.append((id_to_bytes[a], id_to_bytes[b]))
 
+        # 更新维护的 pair_index 和 pair_counts
         impacted = pair_index.get(best_pair)
-        # 如果已经没有涉及的单词，直接清理一下现场
         if not impacted:
             pair_index.pop(best_pair, None)
             continue
-
+        
+        # 临时变量，用于存储合并后的单词和对应的频次
         new_words_acc: Dict[Tuple[int, ...], int] = {}
-        for w in list(impacted):
-            # 从words 里面，通过 word 来换出现的频次
-            f = words.get(w)
-            if f is None:
+        # 临时变量，用于存储需要清理的 pair_counts 和 pair_index
+        remove_counts_acc: Dict[Tuple[int, int], int] = defaultdict(int)
+        remove_index_acc: Dict[Tuple[int, int], set[Tuple[int, ...]]] = defaultdict(set)
+        # 临时变量，用于存储需要添加的 pair_counts 和 pair_index    
+        add_counts_acc: Dict[Tuple[int, int], int] = defaultdict(int)
+        add_index_acc: Dict[Tuple[int, int], set[Tuple[int, ...]]] = defaultdict(set)
+        
+        for word in list(impacted):
+            freq = words.get(word)
+            if freq is None:
                 continue
-            old_pairs = _pairs(w)
-            for p in old_pairs:
-                pc = pair_counts.get(p)
-                if pc is not None:
-                    pc -= f
-                    if pc <= 0:
-                        pair_counts.pop(p, None)
-                        s = pair_index.get(p)
-                        if s is not None:
-                            s.discard(w)
-                            if not s:
-                                pair_index.pop(p, None)
-                    else:
-                        pair_counts[p] = pc
-                        s = pair_index.get(p)
-                        if s is not None:
-                            s.discard(w)
-                            if not s:
-                                pair_index.pop(p, None)
+            
+            # 计算待删除的 pair_counts 和 pair_index
+            rc, ri = _compute_remove_deltas(word, freq)
+            for pair, dec in rc.items():
+                remove_counts_acc[pair] += dec
+            for pair, holders in ri.items():
+                remove_index_acc[pair].update(holders)
+                
+            # 合并 word 中的 a,b 为 new_id，比如(aId, bIb, cId, aId, bId) -> (newId, cId, newId)
+            merged = _merge_word(word, a, b, new_id)
+            
+            # 计算待添加的 pair_counts 和 pair_index
+            ac, ai = _compute_add_deltas(merged, freq)
+            for pair, inc in ac.items():
+                add_counts_acc[pair] += inc
+            for pair, holders in ai.items():
+                add_index_acc[pair].update(holders)
+            words.pop(word, None)
+            new_words_acc[merged] = new_words_acc.get(merged, 0) + freq
 
-            merged = _merge_word(w, a, b, new_id)
-            new_pairs = _pairs(merged)
-            for p in new_pairs:
-                pair_counts[p] = pair_counts.get(p, 0) + f
-                s = pair_index.get(p)
-                if s is None:
-                    pair_index[p] = {merged}
-                else:
-                    s.add(merged)
-            words.pop(w, None)
-            new_words_acc[merged] = new_words_acc.get(merged, 0) + f
+        # 实际删除 pair_counts 中的内容
+        for pair, dec in remove_counts_acc.items():
+            current = pair_counts.get(pair)
+            if current is None:
+                continue
+            new_val = current - dec
+            if new_val <= 0:
+                pair_counts.pop(pair, None)
+            else:
+                pair_counts[pair] = new_val
+        # 实际删除 pair_index 中的内容
+        for pair, holders_to_remove in remove_index_acc.items():
+            holders = pair_index.get(pair)
+            if holders is not None:
+                holders.difference_update(holders_to_remove)
+                if not holders:
+                    pair_index.pop(pair, None)
+        # 实际添加 pair_counts 中的内容
+        for pair, inc in add_counts_acc.items():
+            pair_counts[pair] = pair_counts.get(pair, 0) + inc
+        # 实际添加 pair_index 中的内容  
+        for pair, holders_to_add in add_index_acc.items():
+            holders = pair_index.get(pair)
+            if holders is None:
+                pair_index[pair] = set(holders_to_add)
+            else:
+                holders.update(holders_to_add)
 
+        # 实际更新 words 中的内容
         for mw, fsum in new_words_acc.items():
             words[mw] = words.get(mw, 0) + fsum
         pair_index.pop(best_pair, None)
 
     vocab: Dict[int, bytes] = {i: id_to_bytes[i] for i in range(len(id_to_bytes))}
     return vocab, merges
+
+# 把这些 word 相关的 pair_count 都减去 freq
+def _compute_remove_deltas(
+    word_tokens: Tuple[int, ...],
+    freq: int,
+) -> Tuple[Dict[Tuple[int, int], int], Dict[Tuple[int, int], set[Tuple[int, ...]]]]:
+    counts_delta: Dict[Tuple[int, int], int] = defaultdict(int)
+    index_delta: Dict[Tuple[int, int], set[Tuple[int, ...]]] = defaultdict(set)
+    for pair in _pairs(word_tokens):
+        counts_delta[pair] += freq
+        index_delta[pair].add(word_tokens)
+    return counts_delta, index_delta
+
+def _compute_add_deltas(
+    merged_tokens: Tuple[int, ...],
+    freq: int,
+) -> Tuple[Dict[Tuple[int, int], int], Dict[Tuple[int, int], set[Tuple[int, ...]]]]:
+    counts_delta: Dict[Tuple[int, int], int] = defaultdict(int)
+    index_delta: Dict[Tuple[int, int], set[Tuple[int, ...]]] = defaultdict(set)
+    for pair in _pairs(merged_tokens):
+        counts_delta[pair] += freq
+        index_delta[pair].add(merged_tokens)
+    return counts_delta, index_delta
