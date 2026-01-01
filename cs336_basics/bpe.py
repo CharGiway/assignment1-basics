@@ -64,18 +64,26 @@ def _pretokenize(text: str, special_tokens: List[str]) -> Counter[bytes]:
             counts[s.encode("utf-8")] += 1
     return counts
 
-
-def _get_pair_counts(word_counts: Dict[Tuple[int, ...], int]) -> Dict[Tuple[int, int], int]:
-    """
-    统计所有“词”（字节 ID 序列）内部相邻对的频次，用于选择下一次合并的目标。
-    """
-    pair_counts: Dict[Tuple[int, int], int] = defaultdict(int)
-    for word, freq in word_counts.items():
-        if len(word) < 2:
+def _pretokenize_worker(segment: str) -> Counter[bytes]:
+    pattern = _compile_gpt2_pretok_pattern()
+    c: Counter[bytes] = Counter()
+    for m in pattern.finditer(segment):
+        s = m.group(0)
+        if not s:
             continue
-        for i in range(len(word) - 1):
-            pair_counts[(word[i], word[i + 1])] += freq
-    return pair_counts
+        c[s.encode("utf-8")] += 1
+    return c
+
+def _pretokenize_parallel(text: str, special_tokens: List[str], n_workers: int) -> Counter[bytes]:
+    if n_workers <= 0:
+        return _pretokenize(text, special_tokens)
+    segments = list(_split_on_special(text, special_tokens))
+    from concurrent.futures import ProcessPoolExecutor
+    out: Counter[bytes] = Counter()
+    with ProcessPoolExecutor(max_workers=n_workers) as ex:
+        for c in ex.map(_pretokenize_worker, segments):
+            out.update(c)
+    return out
 
 # 合并 word 中的 a,b 为 new_id，比如(aId, bIb, cId, aId, bId) -> (newId, cId, newId)
 def _merge_word(word: Tuple[int, ...], a: int, b: int, new_id: int) -> Tuple[int, ...]:
@@ -105,6 +113,7 @@ def train_bpe(
     input_path: str | io.BytesIO,
     vocab_size: int,
     special_tokens: List[str],
+    n_workers: int = 0,
 ) -> Tuple[Dict[int, bytes], List[Tuple[bytes, bytes]]]:
     assert vocab_size > 0
     base_vocab_count = 256 + len(special_tokens)
@@ -128,7 +137,7 @@ def train_bpe(
     )
 
     # 按照special_token 和默认pattern 切分文本，得到形如 {['h','e','l','l','o']->2次, ['w','o','r','l','d']->1次} 类似这种
-    counts = _pretokenize(text, special_tokens)
+    counts = _pretokenize_parallel(text, special_tokens, n_workers)
     sample_counts = dict(counts.most_common(100))
     logutil.info_kvs(
         "event", "pretokenize_summary",
