@@ -1,0 +1,38 @@
+         604276 function calls (603712 primitive calls) in 0.235 seconds
+
+   Ordered by: cumulative time
+   List reduced from 800 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.044    0.044    0.235    0.235 /Users/bytedance/Desktop/code/assignment1-basics/cs336_basics/bpe.py:112(train_bpe)
+        1    0.000    0.000    0.103    0.103 /Users/bytedance/Desktop/code/assignment1-basics/cs336_basics/bpe.py:77(_pretokenize_parallel)
+        1    0.000    0.000    0.072    0.072 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/_base.py:646(__exit__)
+        1    0.000    0.000    0.072    0.072 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:837(shutdown)
+      2/1    0.000    0.000    0.072    0.072 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/threading.py:1058(join)
+      2/1    0.000    0.000    0.068    0.068 {method 'join' of '_thread._ThreadHandle' objects}
+      2/1    0.000    0.000    0.068    0.068 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/threading.py:1000(_bootstrap)
+      2/1    0.000    0.000    0.068    0.068 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/threading.py:1027(_bootstrap_inner)
+        1    0.000    0.000    0.068    0.068 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:330(run)
+        1    0.000    0.000    0.068    0.068 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:549(join_executor_internals)
+        1    0.000    0.000    0.068    0.068 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:553(_join_executor_internals)
+        1    0.000    0.000    0.061    0.061 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/queues.py:145(join_thread)
+        8    0.000    0.000    0.061    0.008 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/util.py:197(__call__)
+        1    0.000    0.000    0.061    0.061 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/queues.py:212(_finalize_join)
+        3    0.000    0.000    0.060    0.020 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:405(wait_result_broken_or_wakeup)
+        2    0.000    0.000    0.060    0.030 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:611(_chain_from_iterable_of_lists)
+        2    0.000    0.000    0.060    0.030 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/_base.py:612(result_iterator)
+        8    0.000    0.000    0.060    0.007 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:1134(wait)
+        4    0.000    0.000    0.050    0.013 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:182(send_bytes)
+        4    0.000    0.000    0.050    0.013 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:406(_send_bytes)
+       25    0.050    0.002    0.050    0.002 {built-in method posix.write}
+        5    0.000    0.000    0.050    0.010 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:381(_send)
+     37/5    0.000    0.000    0.033    0.007 <frozen importlib._bootstrap>:1349(_find_and_load)
+     37/5    0.000    0.000    0.033    0.007 <frozen importlib._bootstrap>:1304(_find_and_load_unlocked)
+     35/6    0.000    0.000    0.033    0.005 <frozen importlib._bootstrap>:911(_load_unlocked)
+     24/6    0.000    0.000    0.032    0.005 <frozen importlib._bootstrap_external>:1020(exec_module)
+    90/11    0.000    0.000    0.025    0.002 <frozen importlib._bootstrap>:480(_call_with_frames_removed)
+     25/6    0.000    0.000    0.025    0.004 {built-in method builtins.exec}
+    27/11    0.000    0.000    0.020    0.002 <frozen importlib._bootstrap>:1390(_handle_fromlist)
+     8336    0.013    0.000    0.019    0.000 /Users/bytedance/Desktop/code/assignment1-basics/cs336_basics/bpe.py:304(_compute_remove_deltas)
+
+

@@ -175,7 +175,9 @@ def train_bpe(
 
     # 注意一下 words、id、bytes、pairs 之间的关系就行
     
+    step_idx = 0
     for _ in range(num_merges):
+        _step_start = time.perf_counter()
         # 从 本次的 pair_counts 里面，选择出现频次最高的 pair，
         # 然后更新 id_to_bytes 和 merges 数组
         if not pair_counts:
@@ -194,7 +196,23 @@ def train_bpe(
         # 更新维护的 pair_index 和 pair_counts
         impacted = pair_index.get(best_pair)
         if not impacted:
+            logutil.info_kvs(
+                "event", "bpe_merge_step",
+                "step", step_idx,
+                "num_merges", num_merges,
+                "pair", [int(a), int(b)],
+                "a_bytes", id_to_bytes[a],
+                "b_bytes", id_to_bytes[b],
+                "new_id", new_id,
+                "new_len", len(new_bytes),
+                "impacted", 0,
+                "pair_counts_size", len(pair_counts),
+                "words_size", len(words),
+                "elapsed_ms", int((time.perf_counter() - _step_start) * 1000),
+                "status", "skipped",
+            )
             pair_index.pop(best_pair, None)
+            step_idx += 1
             continue
         
         # 临时变量，用于存储合并后的单词和对应的频次
@@ -262,6 +280,22 @@ def train_bpe(
         for mw, fsum in new_words_acc.items():
             words[mw] = words.get(mw, 0) + fsum
         pair_index.pop(best_pair, None)
+        logutil.info_kvs(
+            "event", "bpe_merge_step",
+            "step", step_idx,
+            "num_merges", num_merges,
+            "pair", [int(a), int(b)],
+            "a_bytes", id_to_bytes[a],
+            "b_bytes", id_to_bytes[b],
+            "new_id", new_id,
+            "new_len", len(new_bytes),
+            "impacted", len(impacted),
+            "pair_counts_size", len(pair_counts),
+            "words_size", len(words),
+            "elapsed_ms", int((time.perf_counter() - _step_start) * 1000),
+            "status", "merged",
+        )
+        step_idx += 1
 
     vocab: Dict[int, bytes] = {i: id_to_bytes[i] for i in range(len(id_to_bytes))}
     return vocab, merges

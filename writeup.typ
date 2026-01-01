@@ -26,3 +26,11 @@ UTF-8 保留 ASCII 为单字节、对常见语料更紧凑并使字节级 BPE �
 
 === （c）
 示例：`b"\x80\x80"`；这两个均为续字节且缺少合法的领头字节，属于非法 UTF-8 序列，不能解码为任何 Unicode 字符。
+
+== Problem 3：train_bpe_tinystories（2 分）
+=== （a）
+在 TinyStories 上训练了 10k 字节级 BPE（包含 `<|endoftext|>`），耗时约 0.14 小时，峰值内存约 11.1 GB；最长 token 为 " accomplishment"（15 字节），为空格前缀的英文长词，合理。
+
+=== （b）
+剖析显示并行预分词阶段耗时最多（`_pretokenize_parallel` 累计约 457s），其余时间主要花在进程结果收集与等待上。
+
