@@ -4,6 +4,7 @@ import os
 import time
 from pathlib import Path
 import resource
+import sys
 import cProfile
 import pstats
 from typing import Dict, Tuple, List
@@ -88,7 +89,10 @@ def main() -> None:
     elapsed_sec = time.perf_counter() - start_time
     rss_after_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     peak_rss_kb = max(rss_before_kb, rss_after_kb)
-    peak_rss_gb = peak_rss_kb / (1024 * 1024)
+    if sys.platform == "darwin":
+        peak_rss_gb = peak_rss_kb / (1024 ** 3)
+    else:
+        peak_rss_gb = peak_rss_kb / (1024 ** 2)
 
     vocab_path, merges_path = _serialize_vocab_merges(out_dir, vocab, merges)
 

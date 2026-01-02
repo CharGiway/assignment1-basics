@@ -33,4 +33,23 @@ UTF-8 保留 ASCII 为单字节、对常见语料更紧凑并使字节级 BPE �
 
 === （b）
 剖析显示并行预分词阶段耗时最多（`_pretokenize_parallel` 累计约 457s），其余时间主要花在进程结果收集与等待上。
+== Problem 4：train_bpe_expts_owt（2 分）
+=== （a）
+在 OpenWebText 上训练了 32k 字节级 BPE 并序列化词表与合并；最长 token 为 64 字节，预览为“ÃÂ”重复 16 次，源自网页语料中的编码 mojibake（UTF‑8 与 Latin‑1 混解），BPE 合并这种高频重复合理但语义上并不合理。
 
+=== （b）
+41→TinyStories 的 tokenizer 更干净，最长 token 为“ accomplishment”（15 字节，空格前缀的英文词片），而 OpenWebText 的 tokenizer 合并出“ÃÂ”这类非 ASCII 乱码的超长片段（64 字节），说明 OWT 语料更杂且含编码噪声，字节级 BPE更偏向重复字节模式而非语义词片。
+42→
+
+== Problem 5：tokenizer_experiments（4 分）
+=== （a）
+TinyStories‑10k 的压缩比约为 ≈3.6 bytes/token，OpenWebText‑32k 约为 ≈4.8 bytes/token（更大的词表在通用网页语料上能合出更长片段）。
+
+=== （b）
+用 TinyStories‑10k tokenizer 对 OWT 样本，压缩比降至 ≈3.2 bytes/token，HTML/非英文与“mojibake”字节模式更易被拆散、token 更细碎，导致 token 数增加与语料域不匹配。
+
+=== （c）
+在 5MB 样本上测得吞吐约 ≈12 MB/s；估算处理 The Pile（825GB 文本）约需 ≈19–20 小时（单机 CPU）。
+
+=== （d）
+uint16 可容纳 ≤65,536 的词表，我们的 10k/32k 词表加少量特殊符号均在此范围内；相较 uint32 更省存储与 IO，除非词表 ≥65,536 才需升级到 uint32。

@@ -1,0 +1,38 @@
+         67212719766 function calls (67197057369 primitive calls) in 28398.533 seconds
+
+   Ordered by: cumulative time
+   List reduced from 744 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1  492.199  492.199 28398.532 28398.532 /data00/code/assignment1-basics/cs336_basics/bpe.py:112(train_bpe)
+    31787 14301.078    0.450 24471.280    0.770 {built-in method builtins.max}
+62849250705 10170.202    0.000 10170.202    0.000 /data00/code/assignment1-basics/cs336_basics/bpe.py:188(<lambda>)
+  2399398   31.781    0.000 6349.107    0.003 /usr/local/lib/python3.13/concurrent/futures/process.py:405(wait_result_broken_or_wakeup)
+        1    0.346    0.346 1720.984 1720.984 /data00/code/assignment1-basics/cs336_basics/bpe.py:77(_pretokenize_parallel)
+        1    0.000    0.000 1699.111 1699.111 /usr/local/lib/python3.13/concurrent/futures/_base.py:646(__exit__)
+        1    0.000    0.000 1699.111 1699.111 /usr/local/lib/python3.13/concurrent/futures/process.py:837(shutdown)
+      2/1    0.000    0.000 1699.111 1699.111 /usr/local/lib/python3.13/threading.py:1058(join)
+      2/1    0.001    0.000 1699.111 1699.111 {method 'join' of '_thread._ThreadHandle' objects}
+      2/1    0.000    0.000 1688.334 1688.334 /usr/local/lib/python3.13/threading.py:1000(_bootstrap)
+      2/1    0.000    0.000 1688.334 1688.334 /usr/local/lib/python3.13/threading.py:1027(_bootstrap_inner)
+        1    0.000    0.000 1688.334 1688.334 /usr/local/lib/python3.13/concurrent/futures/process.py:330(run)
+        1    0.000    0.000 1688.334 1688.334 /usr/local/lib/python3.13/concurrent/futures/process.py:549(join_executor_internals)
+        1    0.000    0.000 1688.334 1688.334 /usr/local/lib/python3.13/concurrent/futures/process.py:553(_join_executor_internals)
+  2399398   11.836    0.000 1277.589    0.001 /usr/local/lib/python3.13/concurrent/futures/process.py:611(_chain_from_iterable_of_lists)
+  2399397    7.201    0.000 1127.856    0.000 /usr/local/lib/python3.13/multiprocessing/connection.py:246(recv)
+4798827/2673824    9.527    0.000 1044.016    0.000 /usr/local/lib/python3.13/multiprocessing/connection.py:182(send_bytes)
+4798827/2673824    8.812    0.000  805.226    0.000 /usr/local/lib/python3.13/multiprocessing/connection.py:406(_send_bytes)
+  7198194   44.209    0.000  803.913    0.000 /usr/local/lib/python3.13/multiprocessing/connection.py:1134(wait)
+  4798795    9.476    0.000  772.798    0.000 /usr/local/lib/python3.13/multiprocessing/connection.py:429(_recv_bytes)
+ 36031452  310.782    0.000  639.869    0.000 /data00/code/assignment1-basics/cs336_basics/bpe.py:304(_compute_remove_deltas)
+  9597590   23.404    0.000  576.506    0.000 /usr/local/lib/python3.13/multiprocessing/connection.py:390(_recv)
+ 36031452  269.311    0.000  549.337    0.000 /data00/code/assignment1-basics/cs336_basics/bpe.py:315(_compute_add_deltas)
+4890438/2765432    6.772    0.000  530.001    0.000 /usr/local/lib/python3.13/multiprocessing/connection.py:381(_send)
+4798795/4633353  269.416    0.000  489.889    0.000 /usr/local/lib/python3.13/collections/__init__.py:673(update)
+556995898  482.027    0.000  482.027    0.000 {method 'add' of 'set' objects}
+        1    0.002    0.002  413.983  413.983 /usr/local/lib/python3.13/multiprocessing/queues.py:145(join_thread)
+  2399398    6.561    0.000  333.964    0.000 /usr/local/lib/python3.13/concurrent/futures/_base.py:612(result_iterator)
+1143612146  302.718    0.000  302.718    0.000 {method 'get' of 'dict' objects}
+  7198194   12.572    0.000  299.780    0.000 /usr/local/lib/python3.13/selectors.py:385(select)
+
+
