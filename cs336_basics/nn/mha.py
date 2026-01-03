@@ -33,15 +33,14 @@ class MultiHeadSelfAttention(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         device = x.device
         seq_len = x.shape[-2]
-        q = torch.einsum("... t d, od -> ... t o", x, self.q_proj)
-        k = torch.einsum("... t d, od -> ... t o", x, self.k_proj)
-        v = torch.einsum("... t d, od -> ... t o", x, self.v_proj)
+        q = torch.einsum("... t d, o d -> ... t o", x, self.q_proj)
+        k = torch.einsum("... t d, o d -> ... t o", x, self.k_proj)
+        v = torch.einsum("... t d, o d -> ... t o", x, self.v_proj)
         q = rearrange(q, "... t (h d) -> ... h t d", h=self.num_heads)
         k = rearrange(k, "... t (h d) -> ... h t d", h=self.num_heads)
         v = rearrange(v, "... t (h d) -> ... h t d", h=self.num_heads)
         causal = torch.tril(torch.ones((seq_len, seq_len), dtype=torch.bool, device=device))
         out_heads = scaled_dot_product_attention(q, k, v, mask=causal)
         out = rearrange(out_heads, "... h t d -> ... t (h d)")
-        y = torch.einsum("... t d, od -> ... t o", out, self.o_proj)
+        y = torch.einsum("... t d, o d -> ... t o", out, self.o_proj)
         return y
-
