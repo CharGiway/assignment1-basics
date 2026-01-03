@@ -320,7 +320,35 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    from cs336_basics.nn.transformer_block import TransformerBlock
+    device = in_features.device
+    dtype = in_features.dtype
+    module = TransformerBlock(
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        use_rope=True,
+        max_seq_len=max_seq_len,
+        theta=theta,
+        device=device,
+        dtype=dtype,
+    )
+    state = {
+        "attn.q_proj": weights["attn.q_proj.weight"],
+        "attn.k_proj": weights["attn.k_proj.weight"],
+        "attn.v_proj": weights["attn.v_proj.weight"],
+        "attn.o_proj": weights["attn.output_proj.weight"],
+        "ln1.weight": weights["ln1.weight"],
+        "ffn.w1.W": weights["ffn.w1.weight"],
+        "ffn.w2.W": weights["ffn.w2.weight"],
+        "ffn.w3.W": weights["ffn.w3.weight"],
+        "ln2.weight": weights["ln2.weight"],
+    }
+    module.load_state_dict(state)
+    b = in_features.shape[0]
+    t = in_features.shape[1]
+    token_positions = torch.arange(t, device=device).unsqueeze(0).expand(b, t)
+    return module(in_features, token_positions=token_positions)
 
 
 def run_transformer_lm(
@@ -402,7 +430,37 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    from cs336_basics.nn.transformer_lm import TransformerLM
+    device = in_indices.device
+    dtype = torch.float32
+    module = TransformerLM(
+        vocab_size=vocab_size,
+        context_length=context_length,
+        d_model=d_model,
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        rope_theta=rope_theta,
+        device=device,
+        dtype=dtype,
+    )
+    state = {}
+    state["token_embeddings.weight"] = weights["token_embeddings.weight"]
+    for i in range(num_layers):
+        base = f"layers.{i}"
+        state[f"layers.{i}.attn.q_proj"] = weights[f"layers.{i}.attn.q_proj.weight"]
+        state[f"layers.{i}.attn.k_proj"] = weights[f"layers.{i}.attn.k_proj.weight"]
+        state[f"layers.{i}.attn.v_proj"] = weights[f"layers.{i}.attn.v_proj.weight"]
+        state[f"layers.{i}.attn.o_proj"] = weights[f"layers.{i}.attn.output_proj.weight"]
+        state[f"layers.{i}.ln1.weight"] = weights[f"layers.{i}.ln1.weight"]
+        state[f"layers.{i}.ffn.w1.W"] = weights[f"layers.{i}.ffn.w1.weight"]
+        state[f"layers.{i}.ffn.w2.W"] = weights[f"layers.{i}.ffn.w2.weight"]
+        state[f"layers.{i}.ffn.w3.W"] = weights[f"layers.{i}.ffn.w3.weight"]
+        state[f"layers.{i}.ln2.weight"] = weights[f"layers.{i}.ln2.weight"]
+    state["ln_final.weight"] = weights["ln_final.weight"]
+    state["lm_head"] = weights["lm_head.weight"]
+    module.load_state_dict(state)
+    return module(in_indices)
 
 
 def run_rmsnorm(

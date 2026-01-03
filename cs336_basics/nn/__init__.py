@@ -5,3 +5,5 @@ from .swiglu import SwiGLU
 from .rope import RotaryPositionalEmbedding
 from .softmax import softmax
 from .mha import MultiHeadSelfAttention
+from .transformer_block import TransformerBlock
+from .transformer_lm import TransformerLM
