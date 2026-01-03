@@ -8,6 +8,7 @@ import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
+from einops import rearrange
 
 
 def run_linear(
@@ -91,7 +92,15 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    from cs336_basics.nn.swiglu import SwiGLU
+    module = SwiGLU(d_model=d_model, d_ff=d_ff, device=w1_weight.device, dtype=w1_weight.dtype)
+    state = {
+        "w1.weight": w1_weight,
+        "w2.weight": w2_weight,
+        "w3.weight": w3_weight,
+    }
+    module.load_state_dict(state)
+    return module(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -112,7 +121,8 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    from cs336_basics.nn.sdpa import scaled_dot_product_attention
+    return scaled_dot_product_attention(Q, K, V, mask)
 
 
 def run_multihead_self_attention(
@@ -146,7 +156,16 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.nn.mha import MultiHeadSelfAttention
+    module = MultiHeadSelfAttention(d_model=d_model, num_heads=num_heads, device=in_features.device, dtype=in_features.dtype)
+    state = {
+        "q_proj": q_proj_weight,
+        "k_proj": k_proj_weight,
+        "v_proj": v_proj_weight,
+        "o_proj": o_proj_weight,
+    }
+    module.load_state_dict(state)
+    return module(in_features)
 
 
 def run_multihead_self_attention_with_rope(
@@ -186,7 +205,24 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.nn.rope import RotaryPositionalEmbedding
+    from cs336_basics.nn.sdpa import scaled_dot_product_attention
+    device = in_features.device
+    d_head = d_model // num_heads
+    q = torch.einsum("... t d, od -> ... t o", in_features, q_proj_weight)
+    k = torch.einsum("... t d, od -> ... t o", in_features, k_proj_weight)
+    v = torch.einsum("... t d, od -> ... t o", in_features, v_proj_weight)
+    q = rearrange(q, "... t (h d) -> ... h t d", h=num_heads)
+    k = rearrange(k, "... t (h d) -> ... h t d", h=num_heads)
+    v = rearrange(v, "... t (h d) -> ... h t d", h=num_heads)
+    rope = RotaryPositionalEmbedding(theta=theta, d_k=d_head, max_seq_len=max_seq_len, device=device)
+    q = rope(q, token_positions)
+    k = rope(k, token_positions)
+    causal = torch.tril(torch.ones((q.shape[-2], q.shape[-2]), dtype=torch.bool, device=device))
+    out_heads = scaled_dot_product_attention(q, k, v, mask=causal)
+    out = rearrange(out_heads, "... h t d -> ... t (h d)")
+    y = torch.einsum("... t d, od -> ... t o", out, o_proj_weight)
+    return y
 
 
 def run_rope(
@@ -208,7 +244,10 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    raise NotImplementedError
+    from cs336_basics.nn.rope import RotaryPositionalEmbedding
+    device = in_query_or_key.device
+    module = RotaryPositionalEmbedding(theta=theta, d_k=d_k, max_seq_len=max_seq_len, device=device)
+    return module(in_query_or_key, token_positions)
 
 
 def run_transformer_block(
@@ -443,7 +482,8 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    from cs336_basics.nn import softmax as _softmax
+    return _softmax(in_features, dim)
 
 
 def run_cross_entropy(
