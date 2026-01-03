@@ -95,9 +95,9 @@ def run_swiglu(
     from cs336_basics.nn.swiglu import SwiGLU
     module = SwiGLU(d_model=d_model, d_ff=d_ff, device=w1_weight.device, dtype=w1_weight.dtype)
     state = {
-        "w1.weight": w1_weight,
-        "w2.weight": w2_weight,
-        "w3.weight": w3_weight,
+        "w1.W": w1_weight,
+        "w2.W": w2_weight,
+        "w3.W": w3_weight,
     }
     module.load_state_dict(state)
     return module(in_features)
