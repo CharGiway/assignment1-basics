@@ -7,3 +7,4 @@ from .softmax import softmax
 from .mha import MultiHeadSelfAttention
 from .transformer_block import TransformerBlock
 from .transformer_lm import TransformerLM
+from .cross_entropy import cross_entropy

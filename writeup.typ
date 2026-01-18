@@ -53,3 +53,31 @@ TinyStories‑10k 的压缩比约为 ≈3.6 bytes/token，OpenWebText‑32k 约�
 
 === （d）
 uint16 可容纳 ≤65,536 的词表，我们的 10k/32k 词表加少量特殊符号均在此范围内；相较 uint32 更省存储与 IO，除非词表 ≥65,536 才需升级到 uint32。
+
+== Problem 6：Transformer LM resource accounting（5 分）
+=== （a）
+参数总数≈2,127,057,600；单精度加载内存≈8.51 GB（≈7.93 GiB）。
+
+=== （b）
+矩阵乘列表（按一次前向，L=1024，d_model=1600，d_ff=6400，num_layers=48，num_heads=25）：
+- Q/K/V 投影：3×(L×d_model)·(d_model×d_model)，FLOPs≈6·L·d_model²≈1.572864×10^10/层
+- 输出投影 O：1×(L×d_model)·(d_model×d_model)，FLOPs≈2·L·d_model²≈5.24288×10^9/层
+- FFN（三次线性，SwiGLU）：(d_model→d_ff 两次，d_ff→d_model 一次)，FLOPs≈6·L·d_model·d_ff≈6.291456×10^10/层
+- 注意力内部：QK^T 与 (Attn·V)，FLOPs≈2·H·L²·d_k×2≈6.7108864×10^9/层（d_k=64）
+总 FLOPs≈4.51×10^12（48 层汇总加 LM Head，LM Head≈1.646821376×10^11）。
+
+=== （c）
+FFN 的三次线性乘占比最高，其次是 Q/K/V 与 O 的线性乘；注意力内部的 QK^T 与 Attn·V 次之，LM Head 占比最小。
+
+=== （d）
+取 L=1024、d_ff=4·d_model：
+- GPT‑2 small（12 层，d_model=768，H=12）：总≈3.50×10^11；FFN≈49.8%，Q/K/V+O≈16.6%，注意力内部≈11.1%，LM Head≈22.6%
+- GPT‑2 medium（24 层，d_model=1024，H=16）：总≈1.03×10^12；FFN≈59.8%，Q/K/V+O≈19.9%，注意力内部≈10.0%，LM Head≈10.2%
+- GPT‑2 large（36 层，d_model=1280，H=20）：总≈2.26×10^12；FFN≈64.2%，Q/K/V+O≈21.4%，注意力内部≈8.6%，LM Head≈5.8%
+随模型变大，层内线性乘（FFN 与投影，∝d_model² 与 d_model·d_ff）占比上升；注意力内部与 LM Head 的相对占比下降。
+
+=== （e）
+将 GPT‑2 XL 的 context_length 提至 16,384：线性乘 FLOPs 随 L 线性增至≈16×，注意力内部随 L² 增至≈256×，总 FLOPs≈1.5×10^14；注意力内部转为主导，FFN 与 LM Head 的相对占比进一步降低。
+
+== Problem 7：learning_rate_tuning（1 分）
+在 10 次迭代内：学习率 1e1 的损失很快出现震荡并走高；1e2 与 1e3 几乎立即发散（损失持续增大）。总体上，较大的学习率并未更快衰减损失，而是导致训练发散。
