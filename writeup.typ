@@ -81,3 +81,42 @@ FFN 的三次线性乘占比最高，其次是 Q/K/V 与 O 的线性乘；注意
 
 == Problem 7：learning_rate_tuning（1 分）
 在 10 次迭代内：学习率 1e1 的损失很快出现震荡并走高；1e2 与 1e3 几乎立即发散（损失持续增大）。总体上，较大的学习率并未更快衰减损失，而是导致训练发散。
+
+== Problem 8：adamwAccounting（2 分）
+=== （a）
+设 batch_size=B，vocab_size=V，context_length=T，num_layers=L，d_model=D，num_heads=H，并令 d_ff=F=4D。使用 float32（4 字节/元素），按题目指定的组件仅统计如下：
+参数：
+- 词嵌入与 LM 头：2VD
+- 每层注意力权重：4D²（q/k/v/o）
+- 每层 FFN 权重：8D²（W1[4D×D] + W2[D×4D]）
+- 每层 RMSNorm 标度：2D；最终 RMSNorm：D
+- Params_elems = L·(12D² + 2D) + D + 2VD；Params_mem = 4·Params_elems
+梯度：Grad_mem = 4·Params_elems
+优化器（AdamW，两份动量）：Opt_mem = 8·Params_elems
+激活（每层：RMSNorm(s)、MHA 子层的 Q/K/V、Q⊤K、softmax、Attn·V、O；FFN 的 W1、SiLU、W2；层外含最终 RMSNorm、输出投影与交叉熵）：
+- 每层激活元素：16·B·T·D + 2·B·H·T²
+- 层外：最终 RMSNorm B·T·D；输出投影 B·T·V；交叉熵 B·T·V
+- Acts_elems = L·(16·B·T·D + 2·B·H·T²) + B·T·D + 2·B·T·V；Acts_mem = 4·Acts_elems
+总峰值显存：
+- Total_mem = Params_mem + Grad_mem + Opt_mem + Acts_mem = 16·Params_elems + 4·Acts_elems
+- 等价 a·B + b 形式：b = 16·[L·(12D²+2D) + D + 2VD]；a = 4·[L·(16·T·D + 2·H·T²) + (T·D + 2·T·V)]
+
+=== （b）
+以 GPT‑2 XL 形状：L=48，D=1600，H=25，T=1024，V=50257。
+- Params_elems = 1,635,537,600 → b ≈ 24.38 GiB
+- Acts_elems/样本 = 3,879,438,336 → a ≈ 14.45 GiB/样本
+- Total_mem(B) ≈ 14.45·B + 24.38 GiB
+在 80GB（≈80 GiB 近似）限制下：B_max = ⌊(80 − 24.38)/14.45⌋ = 3
+
+=== （c）
+一次 AdamW 步的 FLOPs（将一次乘加视作 2 FLOPs）：
+- 前向每层：Q/K/V 投影 6·B·T·D²，输出投影 2·B·T·D²，FFN 16·B·T·D²，注意力 QK⊤ 与 Attn·V 共 4·B·D·T²
+- 前向总计：F_fwd = L·(24·B·T·D² + 4·B·D·T²) + 2·B·T·D·V
+- 反向近似为 2× 前向；优化器步每参数常数级算子，记 c·Params_elems
+- F_step ≈ 3·F_fwd + c·Params_elems（c≈10，量级远小于主项）
+
+=== （d）
+A100 FP32 峰值 19.5 TFLOP/s；MFU=50% → 有效 9.75×10¹² FLOP/s。代入 GPT‑2 XL、B=1024：
+- F_fwd ≈ 3.59×10¹5 FLOPs；F_step ≈ 1.08×10¹6 FLOPs
+- 400K 步总 FLOPs ≈ 4.31×10²1
+- 训练时长 ≈ 4.31×10²1 / (9.75×10¹2) ≈ 4.42×10⁸ 秒 ≈ 5.1×10³ 天（单卡、FP32、无并行/混合精度）
