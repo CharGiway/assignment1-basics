@@ -1,0 +1,121 @@
+import argparse
+import os
+import math
+import numpy as np
+import torch
+from cs336_basics.nn.transformer_lm import TransformerLM
+from cs336_basics.optim.adamw import AdamW
+from cs336_basics.optim.lr_schedule import get_lr_cosine_schedule
+from cs336_basics.optim.grad_clip import clip_gradients
+from cs336_basics.serialization import save_checkpoint, load_checkpoint
+from cs336_basics.data import get_batch
+from cs336_basics.nn.cross_entropy import cross_entropy
+
+
+def evaluate(model: torch.nn.Module, dataset: np.ndarray, batch_size: int, context_length: int, device: str, iters: int) -> float:
+    model.eval()
+    losses = []
+    with torch.no_grad():
+        for _ in range(iters):
+            x, y = get_batch(dataset, batch_size, context_length, device)
+            logits = model(x)
+            loss = cross_entropy(logits.view(-1, logits.shape[-1]), y.view(-1))
+            losses.append(float(loss.item()))
+    model.train()
+    return float(sum(losses) / len(losses)) if losses else math.nan
+
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--train_tokens", type=str, required=True)
+    p.add_argument("--valid_tokens", type=str, required=True)
+    p.add_argument("--tokens_dtype", type=str, default="uint16")
+    p.add_argument("--device", type=str, default="cpu")
+    p.add_argument("--vocab_size", type=int, required=True)
+    p.add_argument("--context_length", type=int, default=1024)
+    p.add_argument("--d_model", type=int, default=768)
+    p.add_argument("--num_layers", type=int, default=12)
+    p.add_argument("--num_heads", type=int, default=12)
+    p.add_argument("--d_ff", type=int, default=None)
+    p.add_argument("--rope_theta", type=float, default=10000.0)
+    p.add_argument("--batch_size", type=int, default=64)
+    p.add_argument("--max_steps", type=int, default=10000)
+    p.add_argument("--eval_iters", type=int, default=50)
+    p.add_argument("--log_every", type=int, default=10)
+    p.add_argument("--eval_every", type=int, default=100)
+    p.add_argument("--save_every", type=int, default=1000)
+    p.add_argument("--checkpoint_path", type=str, default=None)
+    p.add_argument("--resume_path", type=str, default=None)
+    p.add_argument("--max_lr", type=float, default=3e-4)
+    p.add_argument("--min_lr", type=float, default=3e-5)
+    p.add_argument("--warmup_iters", type=int, default=1000)
+    p.add_argument("--cosine_cycle_iters", type=int, default=100000)
+    p.add_argument("--beta1", type=float, default=0.9)
+    p.add_argument("--beta2", type=float, default=0.999)
+    p.add_argument("--eps", type=float, default=1e-8)
+    p.add_argument("--weight_decay", type=float, default=0.01)
+    p.add_argument("--grad_clip_norm", type=float, default=1.0)
+    p.add_argument("--seed", type=int, default=42)
+    args = p.parse_args()
+
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
+
+    dtype = getattr(np, args.tokens_dtype)
+    if args.train_tokens.endswith(".npy"):
+        train_ds = np.load(args.train_tokens, mmap_mode="r")
+    else:
+        train_ds = np.memmap(args.train_tokens, dtype=dtype, mode="r")
+    if args.valid_tokens.endswith(".npy"):
+        valid_ds = np.load(args.valid_tokens, mmap_mode="r")
+    else:
+        valid_ds = np.memmap(args.valid_tokens, dtype=dtype, mode="r")
+
+    d_ff = args.d_ff if args.d_ff is not None else 4 * args.d_model
+    model = TransformerLM(
+        vocab_size=args.vocab_size,
+        context_length=args.context_length,
+        d_model=args.d_model,
+        num_layers=args.num_layers,
+        num_heads=args.num_heads,
+        d_ff=d_ff,
+        rope_theta=args.rope_theta,
+        device=torch.device(args.device),
+        dtype=torch.float32,
+    )
+    model.to(args.device)
+    optimizer = AdamW(
+        model.parameters(),
+        lr=args.max_lr,
+        betas=(args.beta1, args.beta2),
+        eps=args.eps,
+        weight_decay=args.weight_decay,
+    )
+
+    start_it = 0
+    if args.resume_path is not None and os.path.exists(args.resume_path):
+        start_it = load_checkpoint(args.resume_path, model, optimizer)
+        model.to(args.device)
+
+    for it in range(start_it, args.max_steps):
+        lr = get_lr_cosine_schedule(it, args.max_lr, args.min_lr, args.warmup_iters, args.cosine_cycle_iters)
+        for g in optimizer.param_groups:
+            g["lr"] = lr
+        x, y = get_batch(train_ds, args.batch_size, args.context_length, args.device)
+        logits = model(x)
+        loss = cross_entropy(logits.view(-1, logits.shape[-1]), y.view(-1))
+        optimizer.zero_grad()
+        loss.backward()
+        clip_gradients(model.parameters(), args.grad_clip_norm)
+        optimizer.step()
+        if (it + 1) % args.log_every == 0:
+            print(f"iter={it+1} lr={lr:.6g} train_loss={float(loss.item()):.6g}")
+        if (it + 1) % args.eval_every == 0:
+            val_loss = evaluate(model, valid_ds, args.batch_size, args.context_length, args.device, args.eval_iters)
+            print(f"iter={it+1} val_loss={val_loss:.6g}")
+        if args.checkpoint_path and (it + 1) % args.save_every == 0:
+            save_checkpoint(model, optimizer, it + 1, args.checkpoint_path)
+
+
+if __name__ == "__main__":
+    main()

@@ -81,3 +81,35 @@ FFN 的三次线性乘占比最高，其次是 Q/K/V 与 O 的线性乘；注意
 
 == Problem 7：learning_rate_tuning（1 分）
 在 10 次迭代内：学习率 1e1 的损失很快出现震荡并走高；1e2 与 1e3 几乎立即发散（损失持续增大）。总体上，较大的学习率并未更快衰减损失，而是导致训练发散。
+
+== Problem 8：adamwAccounting（2 分）
+=== （a）
+设批量为 `B=batch_size`，上下文长度 `T=context_length`，层数 `L=num_layers`，模型维度 `d=d_model`，头数 `h=num_heads`，词表大小 `v=vocab_size`，并令 `d_ff=4d`、`d_k=d/h`。采用 float32（每元素 4 bytes）。
+- 参数：`P = 2vd + L(4d^2 + 3d d_ff + 2d) + d`；参数内存：`M_param = 4P`
+- 梯度：`M_grad = 4P`
+- 优化器状态（AdamW 两个动量）：`M_opt = 8P`
+- 激活（仅计题目指定组件）：
+  - 每层：`B[16 T d + 2 h T^2]`（2×RMSNorm + QKV + 加权和 + 输出投影共计 `8Td`；FFN 的 W1、SiLU、W2 共计 `8Td`；注意力内 `Q^T K` 与 `Attn·V` 共计 `2hT^2`）
+  - 末层与输出：`B(T d + T v + T)`（final RMSNorm、输出嵌入 logits、交叉熵标量）
+  - 激活内存：`M_act = 4[ L·B(16Td + 2hT^2) + B(Td + Tv + T) ]`
+- 总峰值：`M_total(B) = M_param + M_grad + M_opt + M_act`
+
+=== （b）
+GPT‑2 XL 设定：`v=50,257`，`T=1,024`，`L=48`，`d=1,600`，`h=25`，`d_ff=6,400`。
+- `P = 2,127,057,600`；`M_param + M_grad + M_opt = 16P ≈ 34.03 GB`
+- 每样本激活：`a = 4[ L(16Td + 2hT^2) + Td + Tv + T ] ≈ 15.31 GB`
+- 故总内存：`M_total(B) ≈ 15.31 · B + 34.03 (GB)`；在 80 GB 预算下最大 `B = ⌊(80−34.03)/15.31⌋ = 3`。
+
+=== （c）
+一次 AdamW 步的 FLOPs（忽略 softmax 常数项与规范化小项，计主要矩阵乘；更新开销 `O(P)`）：
+- 前向每层：`8BTd^2 + 6BTd d_ff + 4BT^2 d`；LM Head：`2BTdv`
+- 前向总计：`F_fwd = L(8BTd^2 + 6BTd d_ff + 4BT^2 d) + 2BTdv`
+- 反向约为前向 2 倍；一步总 FLOPs：`F_step ≈ 3 · F_fwd + O(P)`
+
+=== （d）
+单卡 A100（FP32 峰值 `19.5 TFLOP/s`），`MFU=50%` 则有效吞吐 `9.75 TFLOP/s`。以 GPT‑2 XL、`B=1024`、`T=1024`、`L=48`：
+- `F_fwd ≈ 4.513×10^12 · B` → `F_step ≈ 3 · 4.513×10^12 · B ≈ 1.386×10^16 FLOPs/步`
+- 训练 `400k` 步耗时：`400,000 · 1.386×10^16 / 9.75×10^12 ≈ 5.69×10^8 s ≈ 6,580 天`
+（按前向×3 的步开销与 50% MFU 估算）
+
+
