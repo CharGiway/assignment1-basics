@@ -112,4 +112,32 @@ GPT‑2 XL 设定：`v=50,257`，`T=1,024`，`L=48`，`d=1,600`，`h=25`，`d_ff
 - 训练 `400k` 步耗时：`400,000 · 1.386×10^16 / 9.75×10^12 ≈ 5.69×10^8 s ≈ 6,580 天`
 （按前向×3 的步开销与 50% MFU 估算）
 
+== Problem (learning_rate): Tune the learning rate（3 分）
+=== 设定与策略
+我们在 TinyStories‑10k 上用 CS336 的小模型设定进行学习率调优：`vocab_size=10000`、`context_length=256`、`d_model=512`、`d_ff=1344`、`num_layers=4`、`num_heads=16`、`batch_size=32`，总步数 5000（40,960,000 tokens）。学习率采用“线性 warmup → 余弦退火”并在第 `X` 步精确到达 `min_lr`（余弦调度见 `cs336_basics/optim/lr_schedule.py:11-16`，训练循环见 `cs336_basics/train_lm.py:102-107`）。搜索策略：先在基线 `max_lr=1e-4` 附近做小范围网格（`1e-4→1.2e-4`），再在更高学习率上做短试跑以观察稳定性，必要时配合 `beta2/weight_decay` 微调。
 
+=== 学习率扫参结果（MPS，低资源）
+- 运行 A（高学习率设定）：`max_lr=6e-4, min_lr=3e-4, warmup=2000, cosine_cycle_iters=5000, weight_decay=0.05, grad_clip=1.0`
+  - 最终验证损失（5000 步）：≈1.734（日志见 `artifacts/run_train_20260201-200613/exp_log.jsonl`）
+  - 曲线要点：`val_loss` 在 2400→4800 步区间持续下降，最低点 ≈1.725（4800 步），5000 步略回升到 ≈1.734（总体稳定）
+  - 复现命令：`MAX_STEPS=5000 WARMUP_ITERS=2000 COSINE_CYCLE_ITERS=5000 MAX_LR=6e-4 MIN_LR=3e-4 WEIGHT_DECAY=0.05 VOCAB_SIZE=10000 bash run_training.sh train artifacts/tinystories_tokens/train.npy artifacts/tinystories_tokens/valid.npy mps`
+- 运行 B（基线）：`max_lr=1e-4, min_lr=3e-5, warmup=500, cosine_cycle_iters=5000, weight_decay=0.01`
+  - 在同等设定下，5000 步附近 `val_loss` 明显高于运行 A（此前记录≈2.15）
+  - 复现命令：`MAX_STEPS=5000 WARMUP_ITERS=500 COSINE_CYCLE_ITERS=5000 MAX_LR=1e-4 MIN_LR=3e-5 WEIGHT_DECAY=0.01 VOCAB_SIZE=10000 bash run_training.sh train artifacts/tinystories_tokens/train.npy artifacts/tinystories_tokens/valid.npy mps`
+- 运行 C（更大步长试跑）：`max_lr=2e-3, min_lr=1.2e-3`（短试跑 800 步）
+  - 观察到训练初期 `train_loss` 快速变化、对学习率敏感，需要更长 warmup 与更强正则以维持稳定（后续补充完整曲线）
+  - 复现命令：`MAX_STEPS=800 WARMUP_ITERS=100 COSINE_CYCLE_ITERS=5000 MAX_LR=2e-3 MIN_LR=1.2e-3 VOCAB_SIZE=10000 bash run_training.sh train artifacts/tinystories_tokens/train.npy artifacts/tinystories_tokens/valid.npy mps`
+
+=== 最佳学习率与目标达成
+- 在本机 MPS 低资源目标下，运行 A 的设定在 5000 步达成 `val_loss≈1.734`，满足“低资源将目标提高到 ≤2.00”的要求；相较基线 `1e-4`，更接近“稳定边缘”，收敛更快、曲线更低。
+- 综合结论：在该模型与数据规模下，靠近稳定边缘的较大 `max_lr`（并配合更长 warmup 与适度 `weight_decay`）能显著提升 5000 步内的验证表现；但需要监控尾段回升并适配正则。
+
+=== “稳定边缘”分析（b）
+- 随着学习率增大，早期下降速度变快，但曲线更易出现波动甚至发散；A 设定在 4800 步前后出现轻微回升，提示已逼近稳定边缘；再上探到 `2e-3` 时对 warmup/正则的依赖显著增强，若不调参易不稳。
+ - 本机低资源最佳设定（实验 A）：`batch_size=32`，`max_lr=6e-4`，`min_lr=3e-4`，`warmup=2000（≈总步数40%）`，`cosine_cycle_iters=5000`，`weight_decay=0.05`，`beta2=0.95`，`grad_clip=1.0`；在 5000 步 `val_loss≈1.734`。在此基础上可做小幅微调；更大的 batch 建议按线性规则上调 `max_lr` 并以短试跑验证稳定性。
+
+=== 低资源提示与实现细节
+- 我们严格遵循 CS336 低资源建议：总 tokens ≈40,960,000、MPS 不启用 TF32，必要时可在 sweep 中用 `torch.compile(backend="aot_eager")` 优化后向。
+- 实验日志统一写入 `artifacts/run_train_<timestamp>/exp_log.jsonl`，可直接用于绘制多条学习曲线；本节以运行 A 的完整曲线为主，基线与高学习率短跑用于对比说明稳定边缘。
+=== 学习率曲线（实验 A）
+#image("artifacts/run_train_20260201-200613/learning_curves.svg", width: 80%)

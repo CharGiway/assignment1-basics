@@ -10,6 +10,7 @@ from cs336_basics.optim.grad_clip import clip_gradients
 from cs336_basics.serialization import save_checkpoint, load_checkpoint
 from cs336_basics.data import get_batch
 from cs336_basics.nn.cross_entropy import cross_entropy
+from cs336_basics.exp_logger import ExperimentLogger
 
 
 def evaluate(model: torch.nn.Module, dataset: np.ndarray, batch_size: int, context_length: int, device: str, iters: int) -> float:
@@ -46,6 +47,7 @@ def main():
     p.add_argument("--save_every", type=int, default=1000)
     p.add_argument("--checkpoint_path", type=str, default=None)
     p.add_argument("--resume_path", type=str, default=None)
+    p.add_argument("--log_path", type=str, default="artifacts/exp_log.jsonl")
     p.add_argument("--max_lr", type=float, default=3e-4)
     p.add_argument("--min_lr", type=float, default=3e-5)
     p.add_argument("--warmup_iters", type=int, default=1000)
@@ -97,6 +99,7 @@ def main():
         start_it = load_checkpoint(args.resume_path, model, optimizer)
         model.to(args.device)
 
+    logger = ExperimentLogger(args.log_path) if args.log_path else None
     for it in range(start_it, args.max_steps):
         lr = get_lr_cosine_schedule(it, args.max_lr, args.min_lr, args.warmup_iters, args.cosine_cycle_iters)
         for g in optimizer.param_groups:
@@ -110,11 +113,17 @@ def main():
         optimizer.step()
         if (it + 1) % args.log_every == 0:
             print(f"iter={it+1} lr={lr:.6g} train_loss={float(loss.item()):.6g}")
+            if logger:
+                logger.log(it + 1, lr=lr, train_loss=float(loss.item()))
         if (it + 1) % args.eval_every == 0:
             val_loss = evaluate(model, valid_ds, args.batch_size, args.context_length, args.device, args.eval_iters)
             print(f"iter={it+1} val_loss={val_loss:.6g}")
+            if logger:
+                logger.log(it + 1, val_loss=val_loss)
         if args.checkpoint_path and (it + 1) % args.save_every == 0:
             save_checkpoint(model, optimizer, it + 1, args.checkpoint_path)
+    if logger:
+        logger.close()
 
 
 if __name__ == "__main__":

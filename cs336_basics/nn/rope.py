@@ -35,6 +35,9 @@ class RotaryPositionalEmbedding(nn.Module):
         x2 = einx.rearrange("... seq (h two) -> ... seq h two", x, two=2)
         xe = x2[..., 0]
         xo = x2[..., 1]
+        while cos.dim() < xe.dim():
+            cos = cos.unsqueeze(1)
+            sin = sin.unsqueeze(1)
         ye = xe * cos - xo * sin
         yo = xo * cos + xe * sin
         y = torch.stack((ye, yo), dim=-1)
