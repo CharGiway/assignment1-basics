@@ -1,3 +1,11 @@
+"""Transformer 语言模型训练脚本
+
+负责：
+- 加载编码好的训练/验证 token 数据
+- 构建 `TransformerLM` 与 `AdamW` 优化器
+- 使用线性 warmup → 余弦退火的学习率调度进行训练
+- 记录训练/验证日志，周期性保存检查点，支持断点续训
+"""
 import argparse
 import os
 import math
@@ -14,6 +22,7 @@ from cs336_basics.exp_logger import ExperimentLogger
 
 
 def evaluate(model: torch.nn.Module, dataset: np.ndarray, batch_size: int, context_length: int, device: str, iters: int) -> float:
+    """在验证集上评估若干次，返回平均 loss"""
     model.eval()
     losses = []
     with torch.no_grad():
@@ -27,6 +36,7 @@ def evaluate(model: torch.nn.Module, dataset: np.ndarray, batch_size: int, conte
 
 
 def main():
+    """命令行入口：解析参数、构建数据与模型、进入训练循环"""
     p = argparse.ArgumentParser()
     p.add_argument("--train_tokens", type=str, required=True)
     p.add_argument("--valid_tokens", type=str, required=True)

@@ -7,6 +7,10 @@ from cs336_basics.nn.rmsnorm import RMSNorm
 
 
 class TransformerLM(nn.Module):
+    """基于 TransformerBlock 的语言模型
+
+    结构：token embedding → N×(RMSNorm + MHA + 残差，RMSNorm + SwiGLU FFN + 残差) → RMSNorm → LM Head
+    """
     def __init__(
         self,
         vocab_size: int,
@@ -49,6 +53,7 @@ class TransformerLM(nn.Module):
         torch.nn.init.trunc_normal_(self.lm_head, mean=0.0, std=(2.0 / (self.vocab_size + self.d_model)) ** 0.5, a=-0.5, b=0.5)
 
     def forward(self, x_idx: torch.Tensor) -> torch.Tensor:
+        """前向：输入为 token id，输出为每个位置的词表 logits"""
         x = self.token_embeddings(x_idx)
         b = x.shape[0]
         t = x.shape[1]
@@ -61,4 +66,3 @@ class TransformerLM(nn.Module):
         h = self.ln_final(h)
         logits = torch.einsum("... t d, v d -> ... t v", h, self.lm_head)
         return logits
-

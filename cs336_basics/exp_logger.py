@@ -7,6 +7,12 @@ from typing import Any
 
 
 class ExperimentLogger:
+    """简单 JSONL 实验记录器
+
+    用法：
+    - 调用 `log(step=..., lr=..., train_loss=...)` 写入一行 JSON
+    - 调用 `close()` 关闭文件句柄
+    """
     def __init__(self, log_path: str):
         self.log_path = str(log_path)
         os.makedirs(os.path.dirname(self.log_path) or ".", exist_ok=True)

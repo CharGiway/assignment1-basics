@@ -8,6 +8,10 @@ from cs336_basics.nn.rope import RotaryPositionalEmbedding
 
 
 class MultiHeadSelfAttention(nn.Module):
+    """多头自注意力（可选 RoPE 位置编码）
+
+    权重为手动注册的 `nn.Parameter`，前向中进行矩阵乘、重排、可选 RoPE，再经 SDPA 得到每头输出并合并。
+    """
     def __init__(
         self,
         d_model: int,
@@ -48,6 +52,14 @@ class MultiHeadSelfAttention(nn.Module):
             self.rope = None
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
+        """前向传播
+
+        参数：
+        - x：形状 `[batch, seq_len, d_model]`
+        - token_positions：可选的 token 位置（用于 RoPE），形状 `[batch, seq_len]`
+        返回：
+        - y：形状 `[batch, seq_len, d_model]`
+        """
         device = x.device
         seq_len = x.shape[-2]
         q = torch.einsum("... t d, o d -> ... t o", x, self.q_proj)

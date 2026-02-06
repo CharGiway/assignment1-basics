@@ -141,3 +141,13 @@ GPT‑2 XL 设定：`v=50,257`，`T=1,024`，`L=48`，`d=1,600`，`h=25`，`d_ff
 - 实验日志统一写入 `artifacts/run_train_<timestamp>/exp_log.jsonl`，可直接用于绘制多条学习曲线；本节以运行 A 的完整曲线为主，基线与高学习率短跑用于对比说明稳定边缘。
 === 学习率曲线（实验 A）
 #image("artifacts/run_train_20260201-200613/learning_curves.svg", width: 80%)
+=== Batch size 对比（A 配置，固定 LR，顺序执行）
+#image("artifacts/run_train_20260201-224606/learning_curves.svg", width: 80%)
+#image("artifacts/run_train_20260201-235644/learning_curves.svg", width: 80%)
+==== 结果与分析
+- bs=32（A）：`val_loss≈1.7336@5000`
+- bs=64（A）：`val_loss≈1.6575@5000`
+- bs=128（A）：`val_loss≈1.6083@5000`
+- 固定较高学习率（A 配置）下，批次增大使曲线更平滑且最终 `val_loss` 更低，但需要更长 warmup 和适度正则保持稳定；在本机低资源下，`bs=128` 表现最佳。
+==== 叠加对比图（val_loss）
+#image("artifacts/batch_size_overlay.svg", width: 80%)
