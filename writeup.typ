@@ -187,3 +187,19 @@ The tiny rat came out of the pot. It was very hungry. She went back to the villa
 - 在旧最优学习率下，移除 RMSNorm 的训练并未发散，曲线整体平滑但最终 `val_loss≈1.689@5000` 明显高于有 RMSNorm 的结果（`≈1.608@5000`），表现更差
 - 降低学习率后训练同样稳定，但收敛速度更慢，短试跑显示下降趋势但预计跑满后仍难达到含 RMSNorm 的最佳验证损失
 - RMSNorm 通过通道尺度归一化提升数值稳定性与收敛效率；移除后“稳定边缘”更窄、最佳学习率区间更保守，性能与收敛速度均受影响
+
+== Problem (pre_norm_ablation)：Post-norm 与训练（1 分）
+=== 设置
+- 脚本：`2.post_norm.sh:3`（`NORM_STYLE=post`，其它超参与 TinyStories A 配置一致，bs=128）
+- 运行结果目录：`artifacts/run_train_20260208-170842`
+- 修改：将块内归一化从 pre-norm 改为 post-norm，次序为 `y1 = LN(x + Attn(x))`，`y = LN(y1 + FFN(y1))`
+
+=== 学习曲线与对比
+#image("artifacts/run_train_20260208-170842/learning_curves.svg", width: 80%)
+#image("artifacts/pre_vs_post_norm_170842_overlay.svg", width: 80%)
+
+=== 简短评论
+- Post-norm 在当前较高 LR（A 配置）下可正常训练，但相较 pre-norm 对 warmup/正则更敏感，稳定边缘更窄
+- 与 pre-norm 的对比显示，Post-norm 的验证曲线下降更依赖稳健的调度，适度降低 LR 能改善稳定性；综合而言，pre-norm 更适合深层网络与更快稳态收敛
+
+
