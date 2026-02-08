@@ -108,8 +108,8 @@ NORM_STYLE="${NORM_STYLE:-pre}"
 FFN_STYLE="${FFN_STYLE:-swiglu}"
 FFN_MATCH_PARAMS="${FFN_MATCH_PARAMS:-0}"
 SAVE_EVERY="$((MAX_STEPS/5))"
-if [[ "${SAVE_EVERY}" -gt 1000 ]]; then
-  SAVE_EVERY="1000"
+if [[ "${SAVE_EVERY}" -gt 2000 ]]; then
+  SAVE_EVERY="2000"
 fi
 
 # -----------------------------------------------------------------------------
