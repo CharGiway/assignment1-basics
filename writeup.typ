@@ -202,4 +202,30 @@ The tiny rat came out of the pot. It was very hungry. She went back to the villa
 - Post-norm 在当前较高 LR（A 配置）下可正常训练，但相较 pre-norm 对 warmup/正则更敏感，稳定边缘更窄
 - 与 pre-norm 的对比显示，Post-norm 的验证曲线下降更依赖稳健的调度，适度降低 LR 能改善稳定性；综合而言，pre-norm 更适合深层网络与更快稳态收敛
 
+== Problem (no_pos_emb)：RoPE vs NoPE（1 分）
+=== 设置
+- 脚本：`3.nope.sh:2`（`NO_POS_EMB=1` 关闭 RoPE），其它超参与 TinyStories A 配置一致（bs=128）
+- 运行结果目录：`artifacts/run_train_20260208-173722`
+- 实现：`TransformerLM(use_rope=False)` → `MultiHeadSelfAttention` 中不应用 RoPE（仍保留因果掩码）
 
+=== 学习曲线与对比
+#image("artifacts/run_train_20260208-173722/learning_curves.svg", width: 80%)
+#image("artifacts/rope_vs_nope_173722_overlay.svg", width: 80%)
+
+=== 简短评论
+- NoPE 在该小模型与统一语域（TinyStories）下，前期斜率与 RoPE 接近，验证曲线差距不大；因果掩码与内容相似度即可学习到短程统计关系
+- RoPE 在长上下文与跨句关联上更占优：当上下文加长或语料更复杂（如 OWT），NoPE 的平台更高、生成更易重复或断连；相对位置编码提供的距离刻度能显著改善泛化与顺序敏感度
+
+== Problem (swiglu_ablation)：SwiGLU vs. SiLU（1 分）
+=== 设置
+- SiLU 结果目录：`artifacts/run_train_20260208-175021`；SwiGLU 对照：`artifacts/run_train_20260201-235644`
+- 参数量匹配：SiLU 的隐藏维设为 `≈1.5×d_ff`，令两者参数量接近（`≈3·d_model·d_ff`）
+- 其它架构与超参与 A 配置一致（bs=128，`max_lr=6e-4, min_lr=3e-4, warmup=2000, cosine=5000`）
+
+=== 学习曲线与对比
+#image("artifacts/run_train_20260208-175021/learning_curves.svg", width: 80%)
+#image("artifacts/swiglu_vs_silu_175021_overlay.svg", width: 80%)
+
+=== 简短评论
+- 在匹配参数量条件下，SwiGLU 的门控乘法带来更强的非线性表达与更低的验证损失，尤其在较高学习率下更稳
+- SiLU 需要更保守的学习率与较长 warmup 才能接近最优；早期趋势接近，但最终 `val_loss` 与稳定性通常略逊于 SwiGLU

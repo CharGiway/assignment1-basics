@@ -107,6 +107,10 @@ fi
 NORM_STYLE="${NORM_STYLE:-pre}"
 FFN_STYLE="${FFN_STYLE:-swiglu}"
 FFN_MATCH_PARAMS="${FFN_MATCH_PARAMS:-0}"
+SAVE_EVERY="$((MAX_STEPS/5))"
+if [[ "${SAVE_EVERY}" -gt 1000 ]]; then
+  SAVE_EVERY="1000"
+fi
 
 # -----------------------------------------------------------------------------
 # 学习率扫参参数（可按需修改）
@@ -155,7 +159,7 @@ case "${MODE}" in
       --checkpoint_path "${CKPT_PATH}" \
       --eval_every "${EVAL_EVERY}" \
       --eval_iters "${EVAL_ITERS}" \
-      --save_every "$((MAX_STEPS/5))" \
+      --save_every "${SAVE_EVERY}" \
       --norm_style "${NORM_STYLE}" \
       ${EXTRA_ARGS}
     echo "[Train] 完成。日志见 ${LOG_PATH}，检查点见 ${CKPT_PATH}"
