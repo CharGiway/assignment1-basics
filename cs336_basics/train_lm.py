@@ -9,6 +9,7 @@
 import argparse
 import os
 import math
+import time
 import numpy as np
 import torch
 from cs336_basics.nn.transformer_lm import TransformerLM
@@ -74,6 +75,8 @@ def main():
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
+    start_time = time.time()
+    block_start_time = start_time
     dtype = getattr(np, args.tokens_dtype)
     if args.train_tokens.endswith(".npy"):
         train_ds = np.load(args.train_tokens, mmap_mode="r")
@@ -134,8 +137,19 @@ def main():
                 logger.log(it + 1, val_loss=val_loss)
         if args.checkpoint_path and (it + 1) % args.save_every == 0:
             save_checkpoint(model, optimizer, it + 1, args.checkpoint_path)
+        if (it + 1) % 100 == 0:
+            elapsed_100 = time.time() - block_start_time
+            it_per_sec = 100.0 / elapsed_100 if elapsed_100 > 0 else float("inf")
+            tokens_per_sec = it_per_sec * args.batch_size * args.context_length
+            print(f"iter={it+1} elapsed_100={elapsed_100:.3f}s it_per_sec={it_per_sec:.3f} tokens_per_sec={tokens_per_sec:.1f}")
+            block_start_time = time.time()
     if logger:
         logger.close()
+    total_elapsed = time.time() - start_time
+    completed_steps = args.max_steps - start_it
+    avg_it_per_sec = completed_steps / total_elapsed if total_elapsed > 0 else float("inf")
+    avg_tokens_per_sec = avg_it_per_sec * args.batch_size * args.context_length
+    print(f"final_elapsed_sec={total_elapsed:.3f} avg_it_per_sec={avg_it_per_sec:.3f} avg_tokens_per_sec={avg_tokens_per_sec:.1f}")
 
 
 if __name__ == "__main__":
