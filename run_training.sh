@@ -94,6 +94,13 @@ GRAD_CLIP_NORM="${GRAD_CLIP_NORM:-1.0}"
 LOG_PATH="${LOG_PATH:-${ART_DIR}/exp_log.jsonl}"
 CKPT_PATH="${CKPT_PATH:-${ART_DIR}/lm.ckpt}"
 
+# 可选禁用 RMSNorm（NO_RMSNORM=1 时传递 --no_rmsnorm）
+NO_RMSNORM="${NO_RMSNORM:-0}"
+EXTRA_ARGS=""
+if [[ "${NO_RMSNORM}" == "1" ]]; then
+  EXTRA_ARGS="--no_rmsnorm"
+fi
+
 # -----------------------------------------------------------------------------
 # 学习率扫参参数（可按需修改）
 # -----------------------------------------------------------------------------
@@ -139,7 +146,8 @@ case "${MODE}" in
       --checkpoint_path "${CKPT_PATH}" \
       --eval_every "${EVAL_EVERY}" \
       --eval_iters "${EVAL_ITERS}" \
-      --save_every "$((MAX_STEPS/5))"
+      --save_every "$((MAX_STEPS/5))" \
+      ${EXTRA_ARGS}
     echo "[Train] 完成。日志见 ${LOG_PATH}，检查点见 ${CKPT_PATH}"
     ;;
 

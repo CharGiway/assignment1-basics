@@ -58,6 +58,7 @@ def main():
     p.add_argument("--checkpoint_path", type=str, default=None)
     p.add_argument("--resume_path", type=str, default=None)
     p.add_argument("--log_path", type=str, default="artifacts/exp_log.jsonl")
+    p.add_argument("--no_rmsnorm", action="store_true", default=False)
     p.add_argument("--max_lr", type=float, default=3e-4)
     p.add_argument("--min_lr", type=float, default=3e-5)
     p.add_argument("--warmup_iters", type=int, default=1000)
@@ -92,6 +93,7 @@ def main():
         num_heads=args.num_heads,
         d_ff=d_ff,
         rope_theta=args.rope_theta,
+        use_rmsnorm=(not args.no_rmsnorm),
         device=torch.device(args.device),
         dtype=torch.float32,
     )

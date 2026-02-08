@@ -173,3 +173,18 @@ The tiny rat came out of the pot. It was very hungry. She went back to the villa
   - 采样参数：`temperature/top_p` 直接影响多样性与连贯性；较高 `temperature`/`top_p` 增加新颖性，但更易出现不常见词或逻辑跳跃；降低可使文本更稳但可能重复。
   - 训练配置与步数：学习率调度对齐步数（warmup+余弦）与总训练步（5000）影响验证损失与生成质量；本机 A 配置下 bs=128 的验证更低，生成文本更稳。
   - 上下文长度与提示设计：`context_length=256` 限制模型可见的历史；更具体的 prompt（角色、目标、场景）通常提升连贯性与细节。
+
+== Problem (layer_norm_ablation)：Remove RMSNorm 并训练（1 分）
+=== 设置
+- 架构保持一致，仅移除所有 RMSNorm（块内两处与顶层一处）；训练数据与上下文长度保持不变
+- 旧最优学习率（A 配置）：`max_lr=6e-4, min_lr=3e-4, warmup=2000, cosine_cycle_iters=5000, weight_decay=0.05, bs=128`
+- 降低学习率试跑（2000 步）：`max_lr=2e-4, min_lr=6e-5, warmup=200, bs=128`
+
+=== 学习曲线
+#image("artifacts/run_train_20260208-105647/learning_curves.svg", width: 80%)
+#image("artifacts/run_train_20260208-105747/learning_curves.svg", width: 80%)
+
+=== 简短评论
+- 在旧最优学习率下，移除 RMSNorm 后训练更不稳定，早期 `train_loss` 高且下降慢；曲线相较有 RMSNorm 的 A 配置明显恶化
+- 降低学习率到 `2e-4` 后训练更稳定，但收敛速度较慢，预期最终 `val_loss` 仍高于有 RMSNorm 的设定
+- RMSNorm 通过通道尺度归一化缓解梯度爆炸、抑制层间尺度漂移，对深层结构的可训练性与收敛速度有关键作用；无归一化时，最佳学习率区间显著收缩
