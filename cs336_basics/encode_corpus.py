@@ -51,23 +51,38 @@ def main():
     vocab, merges = _load_vocab_merges(vocab_path, merges_path)
     tok = Tokenizer(vocab, merges, special_tokens=["<|endoftext|>"])
 
-    tmp_mmap_path = out_path.with_suffix(out_path.suffix + ".tmp.mmap")
-    arr = np.memmap(tmp_mmap_path, mode="w+", dtype=dtype, shape=(limit,))
-
     count = 0
-    with open(text_path, "r", encoding="utf-8") as f:
-        for tid in tok.encode_iterable(f):
-            if count >= limit:
-                break
-            arr[count] = tid
-            count += 1
-
-    # 将已写入部分保存为 .npy，删除临时 mmap
-    np.save(out_path, np.asarray(arr[:count], dtype=dtype))
-    try:
-        os.remove(tmp_mmap_path)
-    except Exception:
-        pass
+    if limit > 0:
+        tmp_mmap_path = out_path.with_suffix(out_path.suffix + ".tmp.mmap")
+        arr = np.memmap(tmp_mmap_path, mode="w+", dtype=dtype, shape=(limit,))
+        with open(text_path, "r", encoding="utf-8") as f:
+            for tid in tok.encode_iterable(f):
+                if count >= limit:
+                    break
+                arr[count] = tid
+                count += 1
+        np.save(out_path, np.asarray(arr[:count], dtype=dtype))
+        try:
+            os.remove(tmp_mmap_path)
+        except Exception:
+            pass
+    else:
+        chunks: list[np.ndarray] = []
+        chunk_size = 1_000_000
+        buf = np.empty((chunk_size,), dtype=dtype)
+        i = 0
+        with open(text_path, "r", encoding="utf-8") as f:
+            for tid in tok.encode_iterable(f):
+                buf[i] = tid
+                i += 1
+                count += 1
+                if i == chunk_size:
+                    chunks.append(buf.copy())
+                    i = 0
+        if i > 0:
+            chunks.append(buf[:i].copy())
+        out_arr = np.concatenate(chunks) if chunks else np.empty((0,), dtype=dtype)
+        np.save(out_path, out_arr)
     print(json.dumps({"out_path": str(out_path), "count": int(count), "device": device}))
 
 
