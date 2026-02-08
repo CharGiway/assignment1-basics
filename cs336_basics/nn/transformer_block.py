@@ -19,6 +19,7 @@ class TransformerBlock(nn.Module):
         norm_style: str = "pre",
         ffn_style: str = "swiglu",
         ffn_match_params: bool = False,
+        dropout_p: float = 0.0,
         max_seq_len: int | None = None,
         theta: float = 10000.0,
         device: torch.device | None = None,
@@ -49,6 +50,8 @@ class TransformerBlock(nn.Module):
             self.ffn = SiLUFFN(d_model=self.d_model, d_ff=width, device=device, dtype=dtype)
         else:
             self.ffn = SwiGLU(d_model=self.d_model, d_ff=self.d_ff, device=device, dtype=dtype)
+        self.attn_dropout = nn.Dropout(p=float(dropout_p)) if dropout_p and dropout_p > 0.0 else nn.Identity()
+        self.ffn_dropout = nn.Dropout(p=float(dropout_p)) if dropout_p and dropout_p > 0.0 else nn.Identity()
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
         b = x.shape[0]
@@ -60,16 +63,20 @@ class TransformerBlock(nn.Module):
         if self.norm_style == "pre":
             h = self.ln1(x)
             h = self.attn(h, token_positions=token_positions)
+            h = self.attn_dropout(h)
             x = x + h
             h2 = self.ln2(x)
             h2 = self.ffn(h2)
+            h2 = self.ffn_dropout(h2)
             y = x + h2
             return y
         else:
             h = self.attn(x, token_positions=token_positions)
+            h = self.attn_dropout(h)
             x_attn = x + h
             y1 = self.ln1(x_attn)
             f = self.ffn(y1)
+            f = self.ffn_dropout(f)
             y2 = y1 + f
             y = self.ln2(y2)
             return y

@@ -64,10 +64,14 @@ def main():
     p.add_argument("--no_pos_emb", action="store_true", default=False)
     p.add_argument("--ffn_style", type=str, default="swiglu")
     p.add_argument("--ffn_match_params", action="store_true", default=False)
+    p.add_argument("--save_best_path", type=str, default=None)
+    p.add_argument("--patience", type=int, default=0)
+    p.add_argument("--min_delta", type=float, default=0.0)
     p.add_argument("--max_lr", type=float, default=3e-4)
     p.add_argument("--min_lr", type=float, default=3e-5)
     p.add_argument("--warmup_iters", type=int, default=1000)
     p.add_argument("--cosine_cycle_iters", type=int, default=100000)
+    p.add_argument("--dropout_p", type=float, default=0.0)
     p.add_argument("--beta1", type=float, default=0.9)
     p.add_argument("--beta2", type=float, default=0.999)
     p.add_argument("--eps", type=float, default=1e-8)
@@ -105,6 +109,7 @@ def main():
         norm_style=str(args.norm_style),
         ffn_style=str(args.ffn_style),
         ffn_match_params=bool(args.ffn_match_params),
+        dropout_p=float(args.dropout_p),
         device=torch.device(args.device),
         dtype=torch.float32,
     )
@@ -123,6 +128,8 @@ def main():
         model.to(args.device)
 
     logger = ExperimentLogger(args.log_path) if args.log_path else None
+    best_val = float("inf")
+    no_improve = 0
     for it in range(start_it, args.max_steps):
         lr = get_lr_cosine_schedule(it, args.max_lr, args.min_lr, args.warmup_iters, args.cosine_cycle_iters)
         for g in optimizer.param_groups:
@@ -143,6 +150,15 @@ def main():
             print(f"iter={it+1} val_loss={val_loss:.6g}")
             if logger:
                 logger.log(it + 1, val_loss=val_loss)
+            if val_loss + args.min_delta < best_val:
+                best_val = float(val_loss)
+                no_improve = 0
+                if args.save_best_path:
+                    save_checkpoint(model, optimizer, it + 1, args.save_best_path)
+            else:
+                no_improve += 1
+                if args.patience > 0 and no_improve >= args.patience:
+                    break
         if args.checkpoint_path and (it + 1) % args.save_every == 0:
             save_checkpoint(model, optimizer, it + 1, args.checkpoint_path)
         if (it + 1) % 100 == 0:

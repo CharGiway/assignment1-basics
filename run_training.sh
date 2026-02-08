@@ -90,6 +90,7 @@ BETA2="${BETA2:-0.999}"
 EPS="${EPS:-1e-8}"
 WEIGHT_DECAY="${WEIGHT_DECAY:-0.01}"
 GRAD_CLIP_NORM="${GRAD_CLIP_NORM:-1.0}"
+DROPOUT_P="${DROPOUT_P:-0.0}"
 
 LOG_PATH="${LOG_PATH:-${ART_DIR}/exp_log.jsonl}"
 CKPT_PATH="${CKPT_PATH:-${ART_DIR}/lm.ckpt}"
@@ -111,6 +112,10 @@ SAVE_EVERY="$((MAX_STEPS/5))"
 if [[ "${SAVE_EVERY}" -gt 2000 ]]; then
   SAVE_EVERY="2000"
 fi
+SAVE_BEST="${SAVE_BEST:-1}"
+BEST_CKPT_PATH="${BEST_CKPT_PATH:-${ART_DIR}/best.ckpt}"
+PATIENCE="${PATIENCE:-10}"
+MIN_DELTA="${MIN_DELTA:-0.0}"
 
 # -----------------------------------------------------------------------------
 # 学习率扫参参数（可按需修改）
@@ -150,6 +155,7 @@ case "${MODE}" in
       --min_lr "${MIN_LR}" \
       --ffn_style "${FFN_STYLE}" \
       $( [[ "${FFN_MATCH_PARAMS}" == "1" ]] && echo --ffn_match_params ) \
+      --dropout_p "${DROPOUT_P}" \
       --beta1 "${BETA1}" \
       --beta2 "${BETA2}" \
       --eps "${EPS}" \
@@ -160,6 +166,9 @@ case "${MODE}" in
       --eval_every "${EVAL_EVERY}" \
       --eval_iters "${EVAL_ITERS}" \
       --save_every "${SAVE_EVERY}" \
+      $( [[ "${SAVE_BEST}" == "1" ]] && echo --save_best_path "${BEST_CKPT_PATH}" ) \
+      --patience "${PATIENCE}" \
+      --min_delta "${MIN_DELTA}" \
       --norm_style "${NORM_STYLE}" \
       ${EXTRA_ARGS}
     echo "[Train] 完成。日志见 ${LOG_PATH}，检查点见 ${CKPT_PATH}"

@@ -25,6 +25,7 @@ class TransformerLM(nn.Module):
         norm_style: str = "pre",
         ffn_style: str = "swiglu",
         ffn_match_params: bool = False,
+        dropout_p: float = 0.0,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -48,6 +49,7 @@ class TransformerLM(nn.Module):
                     norm_style=norm_style,
                     ffn_style=ffn_style,
                     ffn_match_params=ffn_match_params,
+                    dropout_p=dropout_p,
                     max_seq_len=self.context_length,
                     theta=rope_theta,
                     device=device,
