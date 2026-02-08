@@ -1,0 +1,38 @@
+         1774046303 function calls (1746678881 primitive calls) in 511.232 seconds
+
+   Ordered by: cumulative time
+   List reduced from 798 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+  2717701    3.191    0.000  600.957    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:611(_chain_from_iterable_of_lists)
+        1    1.532    1.532  511.232  511.232 /Users/bytedance/Desktop/code/assignment1-basics/cs336_basics/bpe.py:112(train_bpe)
+        1    0.146    0.146  457.434  457.434 /Users/bytedance/Desktop/code/assignment1-basics/cs336_basics/bpe.py:77(_pretokenize_parallel)
+        1    0.000    0.000  451.669  451.669 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/_base.py:646(__exit__)
+        1    0.000    0.000  451.669  451.669 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:837(shutdown)
+      2/1    0.408    0.204  451.669  451.669 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/threading.py:1058(join)
+      2/1    0.000    0.000  451.609  451.609 {method 'join' of '_thread._ThreadHandle' objects}
+      2/1    0.000    0.000  451.609  451.609 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/threading.py:1000(_bootstrap)
+      2/1    0.000    0.000  451.609  451.609 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/threading.py:1027(_bootstrap_inner)
+        1    0.000    0.000  451.609  451.609 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:330(run)
+        1    0.000    0.000  451.609  451.609 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:549(join_executor_internals)
+        1    0.000    0.000  451.609  451.609 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:553(_join_executor_internals)
+       21    0.000    0.000  451.588   21.504 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/util.py:197(__call__)
+        1    0.000    0.000  451.588  451.588 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/queues.py:145(join_thread)
+        1    0.000    0.000  451.588  451.588 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/queues.py:212(_finalize_join)
+  2717701    4.341    0.000  339.725    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/_base.py:612(result_iterator)
+  2717705    8.580    0.000  319.341    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:405(wait_result_broken_or_wakeup)
+  8153111   19.852    0.000  175.253    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:1134(wait)
+  5435406    4.314    0.000  146.268    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:253(poll)
+  2717705    1.338    0.000  112.053    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:91(clear)
+  5435406    2.540    0.000   88.017    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:439(_poll)
+ 48918520   17.609    0.000   73.509    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/selectors.py:340(register)
+  2717700    4.209    0.000   66.217    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:783(submit)
+  2717700    2.947    0.000   60.632    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:246(recv)
+  5435401   32.629    0.000   57.025    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/collections/__init__.py:673(update)
+ 48918520   19.041    0.000   50.589    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/selectors.py:238(register)
+     9793   27.510    0.003   48.322    0.005 {built-in method builtins.max}
+        1    0.000    0.000   45.634   45.634 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/process.py:808(map)
+  2717700    3.195    0.000   45.134    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/concurrent/futures/_base.py:314(_result_or_cancel)
+  5435401    4.126    0.000   41.873    0.000 /opt/homebrew/Caskroom/miniconda/base/lib/python3.13/multiprocessing/connection.py:429(_recv_bytes)
+
+

@@ -169,3 +169,7 @@ writeup.pdf
 *.ckpt
 *.jsonl
 artifacts/**
+!artifacts/tinystories/
+!artifacts/tinystories/**
+!artifacts/tinystories_10k/
+!artifacts/tinystories_10k/**
