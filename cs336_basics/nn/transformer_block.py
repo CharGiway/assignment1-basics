@@ -4,6 +4,7 @@ import einx
 from cs336_basics.nn.rmsnorm import RMSNorm
 from cs336_basics.nn.mha import MultiHeadSelfAttention
 from cs336_basics.nn.swiglu import SwiGLU
+from cs336_basics.nn.silu_ffn import SiLUFFN
 
 
 class TransformerBlock(nn.Module):
@@ -16,6 +17,8 @@ class TransformerBlock(nn.Module):
         use_rope: bool = True,
         use_rmsnorm: bool = True,
         norm_style: str = "pre",
+        ffn_style: str = "swiglu",
+        ffn_match_params: bool = False,
         max_seq_len: int | None = None,
         theta: float = 10000.0,
         device: torch.device | None = None,
@@ -41,7 +44,11 @@ class TransformerBlock(nn.Module):
             theta=self.theta,
         )
         self.ln2 = RMSNorm(d_model=self.d_model, device=device, dtype=dtype) if use_rmsnorm else nn.Identity()
-        self.ffn = SwiGLU(d_model=self.d_model, d_ff=self.d_ff, device=device, dtype=dtype)
+        if ffn_style == "silu":
+            width = int(round(1.5 * self.d_ff)) if ffn_match_params else self.d_ff
+            self.ffn = SiLUFFN(d_model=self.d_model, d_ff=width, device=device, dtype=dtype)
+        else:
+            self.ffn = SwiGLU(d_model=self.d_model, d_ff=self.d_ff, device=device, dtype=dtype)
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
         b = x.shape[0]

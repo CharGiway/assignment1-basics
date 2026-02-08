@@ -100,7 +100,13 @@ EXTRA_ARGS=""
 if [[ "${NO_RMSNORM}" == "1" ]]; then
   EXTRA_ARGS="--no_rmsnorm"
 fi
+NO_POS_EMB="${NO_POS_EMB:-0}"
+if [[ "${NO_POS_EMB}" == "1" ]]; then
+  EXTRA_ARGS="${EXTRA_ARGS} --no_pos_emb"
+fi
 NORM_STYLE="${NORM_STYLE:-pre}"
+FFN_STYLE="${FFN_STYLE:-swiglu}"
+FFN_MATCH_PARAMS="${FFN_MATCH_PARAMS:-0}"
 
 # -----------------------------------------------------------------------------
 # 学习率扫参参数（可按需修改）
@@ -138,6 +144,8 @@ case "${MODE}" in
       --cosine_cycle_iters "${COSINE_CYCLE_ITERS}" \
       --max_lr "${MAX_LR}" \
       --min_lr "${MIN_LR}" \
+      --ffn_style "${FFN_STYLE}" \
+      $( [[ "${FFN_MATCH_PARAMS}" == "1" ]] && echo --ffn_match_params ) \
       --beta1 "${BETA1}" \
       --beta2 "${BETA2}" \
       --eps "${EPS}" \

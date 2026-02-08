@@ -61,6 +61,9 @@ def main():
     p.add_argument("--log_path", type=str, default="artifacts/exp_log.jsonl")
     p.add_argument("--no_rmsnorm", action="store_true", default=False)
     p.add_argument("--norm_style", type=str, default="pre")
+    p.add_argument("--no_pos_emb", action="store_true", default=False)
+    p.add_argument("--ffn_style", type=str, default="swiglu")
+    p.add_argument("--ffn_match_params", action="store_true", default=False)
     p.add_argument("--max_lr", type=float, default=3e-4)
     p.add_argument("--min_lr", type=float, default=3e-5)
     p.add_argument("--warmup_iters", type=int, default=1000)
@@ -97,8 +100,11 @@ def main():
         num_heads=args.num_heads,
         d_ff=d_ff,
         rope_theta=args.rope_theta,
+        use_rope=(not args.no_pos_emb),
         use_rmsnorm=(not args.no_rmsnorm),
         norm_style=str(args.norm_style),
+        ffn_style=str(args.ffn_style),
+        ffn_match_params=bool(args.ffn_match_params),
         device=torch.device(args.device),
         dtype=torch.float32,
     )
