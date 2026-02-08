@@ -173,3 +173,5 @@ artifacts/**
 !artifacts/tinystories/**
 !artifacts/tinystories_10k/
 !artifacts/tinystories_10k/**
+!artifacts/tinystories_tokens/
+!artifacts/tinystories_tokens/**
