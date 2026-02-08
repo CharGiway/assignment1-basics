@@ -92,6 +92,12 @@ class Tokenizer:
         return [self.bytes_to_id[t] for t in tokens]
 
     def encode(self, text: str) -> List[int]:
+        """将输入字符串编码为 token id 列表
+        流程：
+        1) 先按特殊符号与普通文本分段（_split_with_special）
+        2) 对特殊符号直接查表得到 id
+        3) 对普通文本用 GPT‑2 预分词模式（_pattern）逐片匹配，再用字节级 BPE 合并（_bpe_encode_bytes）
+        """
         ids: List[int] = []
         for kind, segment in self._split_with_special(text):
             if kind == "special":
@@ -102,6 +108,7 @@ class Tokenizer:
                     s = m.group(0)
                     if not s:
                         continue
+                    # 将该片段按字节编码，再调用字节级 BPE 做相邻字节合并，最终映射到词表 id
                     ids.extend(self._bpe_encode_bytes(s.encode("utf-8")))
         return ids
 

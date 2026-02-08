@@ -151,3 +151,25 @@ GPT‑2 XL 设定：`v=50,257`，`T=1,024`，`L=48`，`d=1,600`，`h=25`，`d_ff
 - 固定较高学习率（A 配置）下，批次增大使曲线更平滑且最终 `val_loss` 更低，但需要更长 warmup 和适度正则保持稳定；在本机低资源下，`bs=128` 表现最佳。
 ==== 叠加对比图（val_loss）
 #image("artifacts/batch_size_overlay.svg", width: 80%)
+
+== Problem (generate)：Generate text（1 分）
+=== 设置与脚本
+- 使用已训练检查点：`artifacts/run_train_20260201-235644/lm.ckpt`（A 配置，bs=128）
+- 解码参数：`temperature=0.9`，`top_p=0.95`，`max_new_tokens=256`，遇到 `<|endoftext|>` 立刻停止
+- 生成脚本：`scripts/generate_text_from_ckpt.py`（调用 `cs336_basics/decoding.py:23-51`）
+
+=== Prompt
+- `Once upon a time, in a small village, a kind robot named Lumo`
+
+=== 输出（直出文本）
+Once upon a time, in a small village, a kind robot named Lumo was always alert and ready to help. One day, she saw a big pot in the kitchen. She wanted to fill the pot with something yummy.
+Resodded, she found a lot of delicious food. She ate and ate until she was full. Then she started to stir something in the pot. It was a hot soup! The pot of soup smelled so good!
+The tiny rat came out of the pot. It was very hungry. She went back to the village to eat the soup. The people in the village saw the soup and were very happy. The cauliflower said, "Thank you, Crida! I love my delicious soup!" They all sat together and ate the delicious soup.
+<|endoftext|>
+
+=== 简短评论
+- 流畅度：整体连贯，句式与词汇简单，符合 TinyStories 风格。个别用词（如 “Resodded”）存在低频拼写/词义噪声。
+- 影响因素（至少两点）：
+  - 采样参数：`temperature/top_p` 直接影响多样性与连贯性；较高 `temperature`/`top_p` 增加新颖性，但更易出现不常见词或逻辑跳跃；降低可使文本更稳但可能重复。
+  - 训练配置与步数：学习率调度对齐步数（warmup+余弦）与总训练步（5000）影响验证损失与生成质量；本机 A 配置下 bs=128 的验证更低，生成文本更稳。
+  - 上下文长度与提示设计：`context_length=256` 限制模型可见的历史；更具体的 prompt（角色、目标、场景）通常提升连贯性与细节。
