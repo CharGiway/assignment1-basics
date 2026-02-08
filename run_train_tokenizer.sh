@@ -17,6 +17,6 @@ fi
 uv run cs336_basics/train_bpe_tinystories.py \
   --input_path data/owt_train.txt \
   --vocab_size 32000 \
-  --out_dir artifacts/owt_tokens \
+  --out_dir artifacts/owt_32k \
   --n_workers "$NWORKERS" \
   --profile
