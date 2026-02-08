@@ -100,6 +100,7 @@ EXTRA_ARGS=""
 if [[ "${NO_RMSNORM}" == "1" ]]; then
   EXTRA_ARGS="--no_rmsnorm"
 fi
+NORM_STYLE="${NORM_STYLE:-pre}"
 
 # -----------------------------------------------------------------------------
 # 学习率扫参参数（可按需修改）
@@ -147,6 +148,7 @@ case "${MODE}" in
       --eval_every "${EVAL_EVERY}" \
       --eval_iters "${EVAL_ITERS}" \
       --save_every "$((MAX_STEPS/5))" \
+      --norm_style "${NORM_STYLE}" \
       ${EXTRA_ARGS}
     echo "[Train] 完成。日志见 ${LOG_PATH}，检查点见 ${CKPT_PATH}"
     ;;

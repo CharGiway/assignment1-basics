@@ -21,6 +21,7 @@ class TransformerLM(nn.Module):
         d_ff: int,
         rope_theta: float = 10000.0,
         use_rmsnorm: bool = True,
+        norm_style: str = "pre",
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -40,6 +41,7 @@ class TransformerLM(nn.Module):
                     num_heads=self.num_heads,
                     d_ff=self.d_ff,
                     use_rmsnorm=use_rmsnorm,
+                    norm_style=norm_style,
                     use_rope=True,
                     max_seq_len=self.context_length,
                     theta=rope_theta,

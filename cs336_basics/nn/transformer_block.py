@@ -15,6 +15,7 @@ class TransformerBlock(nn.Module):
         *,
         use_rope: bool = True,
         use_rmsnorm: bool = True,
+        norm_style: str = "pre",
         max_seq_len: int | None = None,
         theta: float = 10000.0,
         device: torch.device | None = None,
@@ -27,6 +28,7 @@ class TransformerBlock(nn.Module):
         self.use_rope = bool(use_rope)
         self.max_seq_len = None if max_seq_len is None else int(max_seq_len)
         self.theta = float(theta)
+        self.norm_style = "pre" if norm_style not in ("pre", "post") else norm_style
 
         self.ln1 = RMSNorm(d_model=self.d_model, device=device, dtype=dtype) if use_rmsnorm else nn.Identity()
         self.attn = MultiHeadSelfAttention(
@@ -44,14 +46,23 @@ class TransformerBlock(nn.Module):
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
         b = x.shape[0]
         t = x.shape[-2]
-        h = self.ln1(x)
         if self.use_rope and token_positions is None:
             pos = torch.arange(t, device=x.device, dtype=torch.long)
             ones = torch.ones((b,), device=x.device, dtype=torch.long)
             token_positions = einx.multiply("b, t -> b t", ones, pos)
-        h = self.attn(h, token_positions=token_positions)
-        x = x + h
-        h2 = self.ln2(x)
-        h2 = self.ffn(h2)
-        y = x + h2
-        return y
+        if self.norm_style == "pre":
+            h = self.ln1(x)
+            h = self.attn(h, token_positions=token_positions)
+            x = x + h
+            h2 = self.ln2(x)
+            h2 = self.ffn(h2)
+            y = x + h2
+            return y
+        else:
+            h = self.attn(x, token_positions=token_positions)
+            x_attn = x + h
+            y1 = self.ln1(x_attn)
+            f = self.ffn(y1)
+            y2 = y1 + f
+            y = self.ln2(y2)
+            return y

@@ -181,10 +181,9 @@ The tiny rat came out of the pot. It was very hungry. She went back to the villa
 - 降低学习率试跑（2000 步）：`max_lr=2e-4, min_lr=6e-5, warmup=200, bs=128`
 
 === 学习曲线
-#image("artifacts/run_train_20260208-105647/learning_curves.svg", width: 80%)
-#image("artifacts/run_train_20260208-105747/learning_curves.svg", width: 80%)
+#image("artifacts/run_train_20260208-120254/learning_curves.svg", width: 80%)
 
 === 简短评论
-- 在旧最优学习率下，移除 RMSNorm 后训练更不稳定，早期 `train_loss` 高且下降慢；曲线相较有 RMSNorm 的 A 配置明显恶化
-- 降低学习率到 `2e-4` 后训练更稳定，但收敛速度较慢，预期最终 `val_loss` 仍高于有 RMSNorm 的设定
-- RMSNorm 通过通道尺度归一化缓解梯度爆炸、抑制层间尺度漂移，对深层结构的可训练性与收敛速度有关键作用；无归一化时，最佳学习率区间显著收缩
+- 在旧最优学习率下，移除 RMSNorm 的训练并未发散，曲线整体平滑但最终 `val_loss≈1.689@5000` 明显高于有 RMSNorm 的结果（`≈1.608@5000`），表现更差
+- 降低学习率后训练同样稳定，但收敛速度更慢，短试跑显示下降趋势但预计跑满后仍难达到含 RMSNorm 的最佳验证损失
+- RMSNorm 通过通道尺度归一化提升数值稳定性与收敛效率；移除后“稳定边缘”更窄、最佳学习率区间更保守，性能与收敛速度均受影响
